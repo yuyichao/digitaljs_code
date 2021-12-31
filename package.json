@@ -25,6 +25,7 @@
             "editor/title": [
                 {
                     "command": "digitaljs.openView",
+                    "when": "!digitaljs.view_isfocus",
                     "group": "navigation"
                 }
             ],

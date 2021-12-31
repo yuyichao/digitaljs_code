@@ -103,8 +103,9 @@ class DigitalJS {
             return;
         }
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
         this.panel = vscode.window.createWebviewPanel(
-            'digitaljsView',
+            'digitaljs-mainview',
             'DigitalJS',
             column || vscode.ViewColumn.One,
             {
@@ -118,6 +119,8 @@ class DigitalJS {
             this.panel = undefined;
         });
         this.panel.onDidChangeViewState((e) => {
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus',
+                                           this.panel.active);
             if (this.panel.visible) {
                 vscode.commands.executeCommand('digitaljs-proj-files.focus');
             }

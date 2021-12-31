@@ -31,8 +31,15 @@ function activate(context) {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             panel = undefined;
         });
+        panel.onDidChangeViewState((e) => {
+            const panel = e.webviewPanel;
+            if (panel.visible) {
+                vscode.commands.executeCommand('digitaljs-proj-files.focus');
+            }
+        });
         const js_path = vscode.Uri.joinPath(context.extensionUri, 'dist', 'view-bundle.js');
         panel.webview.html = getWebviewContent(panel.webview.asWebviewUri(js_path));
+        vscode.commands.executeCommand('digitaljs-proj-files.focus');
     }));
 }
 

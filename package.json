@@ -53,12 +53,12 @@
                     "contextualTitle": "DigitalJS Files"
                 },
                 {
-                    "id": "digitaljs-proj-options",
-                    "name": "Options",
+                    "id": "digitaljs-proj-synth",
+                    "type": "webview",
+                    "name": "Synthesis",
                     "icon": "imgs/digitaljs_mono.svg",
                     "when": "digitaljs.view_isactive",
-                    "visibility": "collapsed",
-                    "contextualTitle": "DigitalJS Options"
+                    "contextualTitle": "DigitalJS Synthesis"
                 },
                 {
                     "id": "digitaljs-proj-status",
@@ -114,6 +114,7 @@
         "webpack-cli": "^4.9.1"
     },
     "dependencies": {
+        "@vscode/webview-ui-toolkit": "^0.8.4",
         "digitaljs": "github:tilk/digitaljs",
         "digitaljs_lua": "^0.0.5"
     }

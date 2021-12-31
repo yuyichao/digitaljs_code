@@ -9,16 +9,80 @@ const vscode = require('vscode');
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-    let panel;
-    context.subscriptions.push(vscode.commands.registerCommand('digitaljs.openView', function () {
+    new DigitalJS(context);
+}
+
+// this method is called when your extension is deactivated
+function deactivate() {
+}
+
+class SynthProvider {
+    constructor(djs) {
+        this.djs = djs;
+    }
+    resolveWebviewView(view, context, _token) {
+        const ui_uri = this.djs.getUri(view.webview, this.djs.uiToolkitPath);
+        view.webview.options = {
+            enableScripts: true
+        };
+        view.webview.html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script type="module" src="${ui_uri}"></script>
+</head>
+<body>
+  <vscode-checkbox title="Enables Yosys optimizations of the synthesized circuit. This might make the circuit differ significantly to its HDL specification. This corresponds to the 'opt -full' Yosys command." value="opt">Optimize in Yosys</vscode-checkbox>
+  <vscode-checkbox title="Enables post-processing of Yosys output to reduce the number of components and improve readability." value="transform" checked>Simplify diagram</vscode-checkbox>
+  <vscode-checkbox title="Enables checking for common problems using the Verilator compiler." value="lint" checked>Lint source code</vscode-checkbox>
+  <vscode-dropdown title="Enables finite state machine processing in Yosys. This corresponds to the 'fsm' and 'fsm -nomap' Yosys commands." value="fsm">
+    <vscode-option value="">No FSM transform</vscode-option>
+    <vscode-option value="yes">FSM transform</vscode-option>
+    <vscode-option value="nomap">FSM as circuit element</vscode-option>
+  </vscode-dropdown>
+  <vscode-checkbox title="This corresponds to the 'fsm_expand' Yosys command." value="fsmexpand">Merge more logic into FSM</vscode-checkbox>
+  <vscode-button id="do-synth">Synthesize</vscode-button>
+</body>
+</html>`;
+    }
+}
+
+class DigitalJS {
+    constructor(context) {
+        this.context = context;
+        this.panel = undefined;
+        const ext_uri = context.extensionUri;
+        this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
+        this.viewJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'view-bundle.js');
+        this.uiToolkitPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
+                                                 "webview-ui-toolkit", "dist", "toolkit.js");
+
+        this.options = {
+            opt: false,
+            transform: true,
+            lint: true,
+            fsm: '', // (no)/yes/nomap
+            fsmexpand: false
+        };
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.openView',
+                                            () => this.createOrShowView()));
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
+                                                      new SynthProvider(this), {}));
+    }
+    getUri(webview, uri) {
+        return webview.asWebviewUri(uri);
+    }
+    createOrShowView() {
         const column = vscode.window.activeTextEditor ?
                        vscode.window.activeTextEditor.viewColumn : undefined;
-        if (panel) {
-            panel.reveal(column);
+        if (this.panel) {
+            this.panel.reveal(column);
             return;
         }
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
-        panel = vscode.window.createWebviewPanel(
+        this.panel = vscode.window.createWebviewPanel(
             'digitaljsView',
             'DigitalJS',
             column || vscode.ViewColumn.One,
@@ -27,29 +91,22 @@ function activate(context) {
                 retainContextWhenHidden: true
             }
         );
-        panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'imgs', 'digitaljs.svg');
-        panel.onDidDispose(() => {
+        this.panel.iconPath = this.iconPath;
+        this.panel.onDidDispose(() => {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
-            panel = undefined;
+            this.panel = undefined;
         });
-        panel.onDidChangeViewState((e) => {
-            const panel = e.webviewPanel;
-            if (panel.visible) {
+        this.panel.onDidChangeViewState((e) => {
+            if (this.panel.visible) {
                 vscode.commands.executeCommand('digitaljs-proj-files.focus');
             }
         });
-        const js_path = vscode.Uri.joinPath(context.extensionUri, 'dist', 'view-bundle.js');
-        panel.webview.html = getWebviewContent(panel.webview.asWebviewUri(js_path));
+        this.panel.webview.html = this.getViewContent(this.panel.webview);
         vscode.commands.executeCommand('digitaljs-proj-files.focus');
-    }));
-}
-
-// this method is called when your extension is deactivated
-function deactivate() {
-}
-
-function getWebviewContent(js_url) {
-    return `<!DOCTYPE html>
+    }
+    getViewContent(webview) {
+        const js_uri = this.getUri(webview, this.viewJSPath);
+        return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -57,7 +114,7 @@ function getWebviewContent(js_url) {
   <script>
     window.acquireVsCodeApi = acquireVsCodeApi;
   </script>
-  <script src="${js_url}"></script>
+  <script src="${js_uri}"></script>
   <title>DigitalJS Code</title>
 </head>
 <body>
@@ -88,62 +145,7 @@ function getWebviewContent(js_url) {
     </div>
   </div>
   <div id="editor">
-    <nav>
-      <div class="nav nav-tabs" role="tablist">
-        <a href="#start" class="nav-item nav-link active" role="tab" data-toggle="tab" aria-controls="start" aria-selected="true">Setup</a>
-        <a href="#iopanel" class="nav-item nav-link" role="tab" data-toggle="tab" aria-controls="start" aria-selected="true">I/O</a>
-      </div>
-    </nav>
-    <div class="tab-content">
-      <div role="tabpanel" class="tab-pane tab-padded active" id="start">
-        <form>
-          <div class="form-group form-check" data-bs-toggle="tooltip" title="Enables Yosys optimizations of the synthesized circuit. This might make the circuit differ significantly to its HDL specification. This corresponds to the 'opt -full' Yosys command.">
-            <input type="checkbox" id="opt" class="form-check-input">
-            <label for="opt" class="form-check-label">Optimize in Yosys</label>
-          </div>
-          <div class="form-group form-check" data-bs-toggle="tooltip" title="Enables post-processing of Yosys output to reduce the number of components and improve readability.">
-            <input type="checkbox" id="transform" class="form-check-input" checked>
-            <label for="transform" class="form-check-label">Simplify diagram</label>
-          </div>
-          <div class="form-group form-check" data-bs-toggle="tooltip" title="Enables checking for common problems using the Verilator compiler.">
-            <input type="checkbox" id="lint" class="form-check-input" checked>
-            <label for="lint" class="form-check-label">Lint source code using <a href="https://verilator.org/">Verilator</a></label>
-          </div>
-          <div class="form-group" data-bs-toggle="tooltip" title="Changes how the circuit elements are automatically positioned after synthesis.">
-            <label for="layout">Layout engine</label>
-            <select id="layout" class="form-control">
-              <option value="elkjs">ElkJS (more readable)</option>
-              <option value="dagre">Dagre (legacy)</option>
-            </select>
-          </div>
-          <div class="form-group" data-bs-toggle="tooltip" title="Changes how the synthesized circuit is simulated. The synchronous engine is well tested, but it's also very slow.">
-            <label for="engine">Simulation engine</label>
-            <select id="engine" class="form-control">
-              <option value="worker">WebWorker (faster and responsive)</option>
-              <option value="synch">Synchronous (extensible but slow)</option>
-            </select>
-          </div>
-          <div class="form-group" data-bs-toggle="tooltip" title="Enables finite state machine processing in Yosys. This corresponds to the 'fsm' and 'fsm -nomap' Yosys commands.">
-            <label for="fsm">FSM transform (experimental)</label>
-            <select id="fsm" class="form-control">
-              <option value="">No FSM transform</option>
-              <option value="yes">FSM transform</option>
-              <option value="nomap">FSM as circuit element</option>
-            </select>
-          </div>
-          <div class="form-group form-check" data-bs-toggle="tooltip" title="This corresponds to the 'fsm_expand' Yosys command.">
-            <input type="checkbox" id="fsmexpand" class="form-check-input">
-            <label for="fsmexpand" class="form-check-label">Merge more logic into FSM</label>
-          </div>
-        </form>
-      </div>
-      <div role="tabpanel" class="tab-pane tab-padded" id="iopanel">
-      </div>
-    </div>
-    <div id="synthesize-bar">
-      <form>
-        <button type="submit" class="btn btn-primary">Synthesize and simulate!</button>
-      </form>
+    <div role="tabpanel" class="tab-pane tab-padded" id="iopanel">
     </div>
   </div>
   <div id="gutter_horiz" class="gutter gutter-horizontal"></div>
@@ -184,6 +186,7 @@ function getWebviewContent(js_url) {
 </div>
 </body>
 </html>`;
+    }
 }
 
 module.exports = {

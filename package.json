@@ -17,16 +17,107 @@
         "commands": [
             {
                 "command": "digitaljs.openView",
-                "title": "Start DigitalJS",
-                "icon": "imgs/digitaljs.svg"
+                "title": "Activate",
+                "icon": "imgs/digitaljs.svg",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.pause",
+                "title": "Pause",
+                "icon": "$(debug-pause)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.start",
+                "title": "Start",
+                "icon": "$(run)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.fastForward",
+                "title": "Fast-forward",
+                "icon": "$(run-all)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.singleStep",
+                "title": "Single step",
+                "icon": "$(debug-step-over)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.nextEvent",
+                "title": "Run until next event",
+                "icon": "$(debug-continue)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.openJSON",
+                "title": "Open JSON",
+                "icon": "$(folder-opened)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.saveJSON",
+                "title": "Save JSON",
+                "icon": "$(save)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.saveAsJSON",
+                "title": "Save As JSON",
+                "icon": "$(save-as)",
+                "category": "DigitalJS"
             }
         ],
         "menus": {
+            "view/title": [
+                {
+                    "command": "digitaljs.openJSON",
+                    "when": "view == digitaljs-proj-files",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "digitaljs.saveJSON",
+                    "when": "view == digitaljs-proj-files",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "digitaljs.saveAsJSON",
+                    "when": "view == digitaljs-proj-files",
+                    "group": "navigation@3"
+                }
+            ],
             "editor/title": [
                 {
                     "command": "digitaljs.openView",
                     "when": "!digitaljs.view_isfocus",
                     "group": "navigation"
+                },
+                {
+                    "command": "digitaljs.pause",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "digitaljs.start",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "digitaljs.fastForward",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "digitaljs.singleStep",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@4"
+                },
+                {
+                    "command": "digitaljs.nextEvent",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@5"
                 }
             ],
             "explorer/context": [
@@ -49,7 +140,7 @@
                 {
                     "id": "digitaljs-proj-files",
                     "name": "Files",
-                    "icon": "imgs/digitaljs_mono.svg",
+                    "icon": "$(files)",
                     "when": "digitaljs.view_isactive",
                     "contextualTitle": "DigitalJS Files"
                 },
@@ -57,14 +148,14 @@
                     "id": "digitaljs-proj-synth",
                     "type": "webview",
                     "name": "Synthesis",
-                    "icon": "imgs/digitaljs_mono.svg",
+                    "icon": "$(gear)",
                     "when": "digitaljs.view_isactive",
                     "contextualTitle": "DigitalJS Synthesis"
                 },
                 {
                     "id": "digitaljs-proj-status",
                     "name": "Status",
-                    "icon": "imgs/digitaljs_mono.svg",
+                    "icon": "$(info)",
                     "when": "digitaljs.view_isactive",
                     "contextualTitle": "DigitalJS Status"
                 }

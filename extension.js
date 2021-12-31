@@ -145,26 +145,11 @@ class DigitalJS {
 <div id="grid">
   <div id="toolbar">
     <div class="btn-toolbar" role="toolbar" aria-label="Toolbar">
-      <div class="mr-2">
-        <div class="digitaljs_logo" title="DigitalJS"></div>
-      </div>
-      <div class="symbola btn-group mr-2" role="group" aria-label="Time control">
-        <button name="pause" type="button" class="btn btn-secondary" title="Pause simulation" disabled="true">⏸</button>
-        <button name="resume" type="button" class="btn btn-secondary" title="Resume simulation" disabled="true">▶</button>
-        <button name="fastfw" type="button" class="btn btn-secondary" title="Fast-forward simulation" disabled="true">⏩</button>
-        <button name="single" type="button" class="btn btn-secondary" title="Run single time step" disabled="true">→</button>
-        <button name="next" type="button" class="btn btn-secondary" title="Run until next event" disabled="true">⇥</button>
-      </div>
       <div class="input-group mr-2">
         <div class="input-group-prepend">
           <span class="symbola input-group-text" title="Current tick">⏱</span>
         </div>
         <input type="text" class="form-control" disabled="disabled" id="tick" />
-      </div>
-      <div class="symbola btn-group mr-2" role="group" aria-label="Saving and sharing">
-        <button name="load" type="button" class="btn btn-secondary" title="Load from file" disabled="true">📁</button>
-        <button name="save" type="button" class="btn btn-secondary" title="Save to file" disabled="true">💾</button>
-        <button name="link" type="button" class="btn btn-secondary" title="Get link" disabled="true">🔗</button>
       </div>
     </div>
   </div>

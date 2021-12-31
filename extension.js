@@ -33,6 +33,7 @@ class SynthProvider {
     resolveWebviewView(view, context, _token) {
         const ui_uri = this.djs.getUri(view.webview, this.djs.uiToolkitPath);
         const synth_uri = this.djs.getUri(view.webview, this.djs.synthJSPath);
+        const icon_uri = this.djs.getUri(view.webview, this.djs.codIconsPath);
         view.webview.options = {
             enableScripts: true
         };
@@ -47,6 +48,7 @@ class SynthProvider {
   </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${synth_uri}"></script>
+  <link href="${icon_uri}" rel="stylesheet"/>
 </head>
 <body>
   <vscode-checkbox title="Enables Yosys optimizations of the synthesized circuit. This might make the circuit differ significantly to its HDL specification. This corresponds to the 'opt -full' Yosys command." id="opt">Optimize in Yosys</vscode-checkbox>
@@ -58,7 +60,7 @@ class SynthProvider {
     <vscode-option value="nomap">FSM as circuit element</vscode-option>
   </vscode-dropdown>
   <vscode-checkbox title="This corresponds to the 'fsm_expand' Yosys command." id="fsmexpand">Merge more logic into FSM</vscode-checkbox>
-  <vscode-button id="do-synth">Synthesize</vscode-button>
+  <vscode-button id="do-synth"><i slot="start" class="codicon codicon-run"></i> Synthesize</vscode-button>
 </body>
 </html>`;
     }
@@ -114,6 +116,34 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.openView',
                                             () => this.createOrShowView()));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.pause',
+                                            () => this.pauseSim()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.start',
+                                            () => this.startSim()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.fastForward',
+                                            () => this.fastForwardSim()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.singleStep',
+                                            () => this.singleStepSim()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.newJSON',
+                                            () => this.newJSON()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.openJSON',
+                                            () => this.openJSON()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.addFiles',
+                                            () => this.addFiles()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.saveJSON',
+                                            () => this.saveJSON()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.saveAsJSON',
+                                            () => this.saveAsJSON()));
+
+        context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
                                                       new SynthProvider(this), {}));
         context.subscriptions.push(
@@ -124,6 +154,50 @@ class DigitalJS {
         return webview.asWebviewUri(uri);
     }
     doSynth() {
+        // TODO
+    }
+    pauseSim() {
+        // TODO
+    }
+    startSim() {
+        // TODO
+    }
+    fastForwardSim() {
+        // TODO
+    }
+    singleStepSim() {
+        // TODO
+    }
+    async newJSON() {
+        // TODO
+    }
+    async openJSON() {
+        const files = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: {
+                "Circuit JSON": ['json'],
+            }
+        });
+    }
+    async addFiles() {
+        const files = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: true,
+            filters: {
+                "SystemVerilog": ['sv'],
+                "Verilog": ['v'],
+                "Verilog HEX file": ['vh'],
+                "Lua script": ['lua'],
+            }
+        });
+    }
+    saveJSON() {
+        // TODO
+    }
+    saveAsJSON() {
         // TODO
     }
     createOrShowView() {

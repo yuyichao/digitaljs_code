@@ -154,6 +154,7 @@
                 },
                 {
                     "id": "digitaljs-proj-status",
+                    "type": "webview",
                     "name": "Status",
                     "icon": "$(info)",
                     "when": "digitaljs.view_isactive",
@@ -206,6 +207,7 @@
         "webpack-cli": "^4.9.1"
     },
     "dependencies": {
+        "@vscode/codicons": "^0.0.27",
         "@vscode/webview-ui-toolkit": "^0.8.4",
         "digitaljs": "github:tilk/digitaljs",
         "digitaljs_lua": "^0.0.5"

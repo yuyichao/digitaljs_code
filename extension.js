@@ -64,6 +64,32 @@ class SynthProvider {
     }
 }
 
+class StatusProvider {
+    constructor(djs) {
+        this.djs = djs;
+    }
+    resolveWebviewView(view, context, _token) {
+        const ui_uri = this.djs.getUri(view.webview, this.djs.uiToolkitPath);
+        const icon_uri = this.djs.getUri(view.webview, this.djs.codIconsPath);
+        view.webview.options = {
+            enableScripts: true
+        };
+        view.webview.html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script type="module" src="${ui_uri}"></script>
+  <link href="${icon_uri}" rel="stylesheet"/>
+</head>
+<body>
+  <vscode-text-field id="clock" readonly>
+    <i slot="start" class="codicon codicon-clock"></i>
+  </vscode-text-field>
+</body>
+</html>`;
+    }
+}
+
 class DigitalJS {
     constructor(context) {
         this.context = context;
@@ -74,6 +100,8 @@ class DigitalJS {
         this.synthJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'synth_view.js');
         this.uiToolkitPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                  "webview-ui-toolkit", "dist", "toolkit.js");
+        this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
+                                                "codicons", "dist", "codicon.css");
 
         this.options = {
             opt: false,
@@ -88,6 +116,9 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
                                                       new SynthProvider(this), {}));
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider('digitaljs-proj-status',
+                                                      new StatusProvider(this), {}));
     }
     getUri(webview, uri) {
         return webview.asWebviewUri(uri);
@@ -143,16 +174,6 @@ class DigitalJS {
 </head>
 <body>
 <div id="grid">
-  <div id="toolbar">
-    <div class="btn-toolbar" role="toolbar" aria-label="Toolbar">
-      <div class="input-group mr-2">
-        <div class="input-group-prepend">
-          <span class="symbola input-group-text" title="Current tick">⏱</span>
-        </div>
-        <input type="text" class="form-control" disabled="disabled" id="tick" />
-      </div>
-    </div>
-  </div>
   <div id="paper">
   </div>
   <div id="gutter_vert" class="gutter gutter-vertical"></div>

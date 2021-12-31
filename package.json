@@ -34,6 +34,41 @@
                 }
             ]
         },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "digitaljs-container",
+                    "title": "DigitalJS",
+                    "icon": "imgs/digitaljs_mono.svg"
+                }
+            ]
+        },
+        "views": {
+            "digitaljs-container": [
+                {
+                    "id": "digitaljs-proj-files",
+                    "name": "Files",
+                    "icon": "imgs/digitaljs_mono.svg",
+                    "when": "digitaljs.view_isactive",
+                    "contextualTitle": "DigitalJS Files"
+                },
+                {
+                    "id": "digitaljs-proj-options",
+                    "name": "Options",
+                    "icon": "imgs/digitaljs_mono.svg",
+                    "when": "digitaljs.view_isactive",
+                    "visibility": "collapsed",
+                    "contextualTitle": "DigitalJS Options"
+                },
+                {
+                    "id": "digitaljs-proj-status",
+                    "name": "Status",
+                    "icon": "imgs/digitaljs_mono.svg",
+                    "when": "digitaljs.view_isactive",
+                    "contextualTitle": "DigitalJS Status"
+                }
+            ]
+        },
         "configuration": {
             "title": "Digital JS",
             "properties": {

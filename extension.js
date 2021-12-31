@@ -17,6 +17,7 @@ function activate(context) {
             panel.reveal(column);
             return;
         }
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
         panel = vscode.window.createWebviewPanel(
             'digitaljsView',
             'DigitalJS',
@@ -27,6 +28,7 @@ function activate(context) {
         );
         panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'imgs', 'digitaljs.svg');
         panel.onDidDispose(() => {
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             panel = undefined;
         });
         const js_path = vscode.Uri.joinPath(context.extensionUri, 'dist', 'view-bundle.js');

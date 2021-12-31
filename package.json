@@ -10,15 +10,19 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:digitaljs.helloWorld"
     ],
     "main": "./extension.js",
     "contributes": {
-        "commands": [{
-            "command": "digitaljs.helloWorld",
-            "title": "Hello World"
-
-        }]
+        "configuration": {
+            "title": "Digital JS",
+            "properties": {
+                "digitaljs.serverURL": {
+                    "type": "string",
+                    "default": "https://digitaljs.tilk.eu",
+                    "description": "Digital JS server URL"
+                }
+            }
+        }
     },
     "scripts": {
         "lint": "eslint .",

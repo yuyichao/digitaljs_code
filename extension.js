@@ -23,7 +23,8 @@ function activate(context) {
             'DigitalJS',
             column || vscode.ViewColumn.One,
             {
-                enableScripts: true
+                enableScripts: true,
+                retainContextWhenHidden: true
             }
         );
         panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'imgs', 'digitaljs.svg');

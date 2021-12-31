@@ -168,11 +168,6 @@ class DigitalJS {
       </div>
     </div>
   </div>
-  <div id="editor">
-    <div role="tabpanel" class="tab-pane tab-padded" id="iopanel">
-    </div>
-  </div>
-  <div id="gutter_horiz" class="gutter gutter-horizontal"></div>
   <div id="paper">
   </div>
   <div id="gutter_vert" class="gutter gutter-vertical"></div>

@@ -46,20 +46,40 @@
         }
     },
     "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "npm-run-all compile:*",
+        "compile:views": "webpack --mode development",
+        "watch": "npm-run-all watch:*",
+        "watch:views": "webpack --watch --mode development",
         "lint": "eslint .",
         "pretest": "npm run lint",
         "test": "node ./test/runTest.js"
     },
     "devDependencies": {
-        "@types/vscode": "^1.62.0",
         "@types/glob": "^7.1.4",
         "@types/mocha": "^9.0.0",
         "@types/node": "14.x",
+        "@types/vscode": "^1.62.0",
+        "@vscode/test-electron": "^1.6.2",
+        "bootstrap": "^4.6.1",
+        "css-loader": "^6.5.1",
         "eslint": "^8.1.0",
+        "expose-loader": "^3.1.0",
         "glob": "^7.1.7",
+        "jquery": "^3.6.0",
+        "mini-css-extract-plugin": "^2.4.5",
         "mocha": "^9.1.3",
+        "node-sass": "^7.0.1",
+        "npm-run-all": "^4.1.5",
+        "popper.js": "^1.16.1",
+        "sass-loader": "^12.4.0",
+        "style-loader": "^3.3.1",
         "typescript": "^4.4.4",
-        "@vscode/test-electron": "^1.6.2"
+        "webpack": "^5.65.0",
+        "webpack-cli": "^4.9.1"
+    },
+    "dependencies": {
+        "digitaljs": "github:tilk/digitaljs",
+        "digitaljs_lua": "^0.0.5"
     }
-
 }

@@ -10,9 +10,30 @@
         "Other"
     ],
     "activationEvents": [
+        "onCommand:digitaljs.openView"
     ],
     "main": "./extension.js",
     "contributes": {
+        "commands": [
+            {
+                "command": "digitaljs.openView",
+                "title": "Start DigitalJS",
+                "icon": "imgs/digitaljs.svg"
+            }
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "digitaljs.openView",
+                    "group": "navigation"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "digitaljs.openView"
+                }
+            ]
+        },
         "configuration": {
             "title": "Digital JS",
             "properties": {

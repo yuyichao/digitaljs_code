@@ -9,6 +9,27 @@ const vscode = require('vscode');
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+    let panel;
+    context.subscriptions.push(vscode.commands.registerCommand('digitaljs.openView', function () {
+        const column = vscode.window.activeTextEditor ?
+                       vscode.window.activeTextEditor.viewColumn : undefined;
+        if (panel) {
+            panel.reveal(column);
+            return;
+        }
+        panel = vscode.window.createWebviewPanel(
+            'digitaljsView',
+            'DigitalJS',
+            column || vscode.ViewColumn.One,
+            {
+                enableScripts: true
+            }
+        );
+        panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'imgs', 'digitaljs.svg');
+        panel.onDidDispose(() => {
+            panel = undefined;
+        });
+    }));
 }
 
 // this method is called when your extension is deactivated

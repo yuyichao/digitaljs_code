@@ -26,7 +26,7 @@ class SynthProvider {
                 this.djs.doSynth();
                 return;
             case 'update-options':
-                this.djs.options = { ...context.state };
+                this.djs.synth_options = { ...context.state };
                 return;
         }
     }
@@ -44,7 +44,7 @@ class SynthProvider {
 <head>
   <meta charset="UTF-8">
   <script>
-    window.init_options = ${JSON.stringify(this.djs.options)};
+    window.init_options = ${JSON.stringify(this.djs.synth_options)};
   </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${synth_uri}"></script>
@@ -105,7 +105,7 @@ class DigitalJS {
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
 
-        this.options = {
+        this.synth_options = {
             opt: false,
             transform: true,
             lint: true,

@@ -60,4 +60,39 @@ function digitaljs_worker_config(env, argv) {
     };
 }
 
-module.exports = [main_view_config, digitaljs_worker_config];
+function web_ext_config(env, argv) {
+    const devMode = argv.mode !== "production";
+    return {
+        name: 'web-ext',
+        target: 'webworker',
+        entry: {
+            extension: "./extension.js",
+        },
+        output: {
+            path: path.join(__dirname, outputDirectory),
+            filename: "web-extension.js"
+        },
+        resolve: {
+            alias: {
+                path: require.resolve('path-browserify')
+            },
+            fallback: {
+                https: false
+            }
+        },
+        module: {
+            rules: [
+            ]
+        },
+        plugins: [
+            new webpack.ProvidePlugin({
+                process: 'process/browser' // provide a shim for the global `process` variable
+            })
+        ],
+        externals: {
+            vscode: 'commonjs vscode' // ignored because it doesn't exist
+        },
+    };
+}
+
+module.exports = [main_view_config, digitaljs_worker_config, web_ext_config];

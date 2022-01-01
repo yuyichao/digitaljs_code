@@ -219,7 +219,8 @@
         "watch:views": "webpack --watch --mode development",
         "lint": "eslint .",
         "pretest": "npm run lint",
-        "test": "node ./test/runTest.js"
+        "test": "node ./test/runTest.js",
+        "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
     },
     "devDependencies": {
         "@types/glob": "^7.1.4",
@@ -227,6 +228,7 @@
         "@types/node": "14.x",
         "@types/vscode": "^1.62.0",
         "@vscode/test-electron": "^1.6.2",
+        "@vscode/test-web": "^0.0.15",
         "css-loader": "^6.5.1",
         "eslint": "^8.1.0",
         "expose-loader": "^3.1.0",

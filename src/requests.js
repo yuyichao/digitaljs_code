@@ -2,13 +2,15 @@
 
 'use strict';
 
+const vscode = require('vscode');
+
 if (process.browser) {
     module.exports.yosys2digitaljs = async function (req_body) {
         const server = vscode.workspace.getConfiguration('digitaljs').get('serverURL');
         req_body = JSON.stringify(req_body);
         const response = await fetch(server + "/api/yosys2digitaljs", {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 "Content-Type": "application/json",
             },
@@ -31,7 +33,6 @@ if (process.browser) {
     }
 }
 else {
-    const vscode = require('vscode');
     const https = require('https');
 
     module.exports.yosys2digitaljs = function (req_body) {

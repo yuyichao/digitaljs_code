@@ -30,6 +30,10 @@ class DigitalJS {
                 case 'showcircuit':
                     this.mkCircuit(message.circuit, message.opts);
                     return;
+                case 'savecircuit':
+                    vscode.postMessage({ command: "updatecircuit",
+                                         circuit: this.circuit.toJSON() });
+                    return;
             }
         });
         this.updateRunStates();
@@ -97,9 +101,6 @@ class DigitalJS {
             vscode.postMessage({ command: "clearmarker" });
         });
     }
-    updateCircuit() {
-        vscode.postMessage({ command: "updatecircuit", circuit: this.circuit.toJSON() });
-    }
     mkCircuit(data, opts) {
         if (opts.transform)
             data = digitaljs.transform.transformCircuit(data);
@@ -110,9 +111,6 @@ class DigitalJS {
             engineOptions: { workerURL: window.simWorkerUri }
         };
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
-        // If transform is on, update the host about the transformed circuit.
-        if (opts.transform)
-            this.updateCircuit();
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });
@@ -128,7 +126,6 @@ class DigitalJS {
         this.registerMarkers(this.paper);
         this.circuit.on('new:paper', (paper) => { this.registerMarkers(paper); });
         this.circuit.on('userChange', () => {
-            this.updateCircuit();
             this.updateRunStates();
         });
         this.circuit.on('changeRunning', () => {

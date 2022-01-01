@@ -181,6 +181,8 @@ class DigitalJS {
         this.simWorker = this.readSimWorker(vscode.Uri.joinPath(ext_uri, 'dist',
                                                                 'digitaljs-sym-worker.js'));
 
+        this.updateCircuitWaits = [];
+
         this.files = new FilesMgr();
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.extra_data = {};
@@ -318,6 +320,12 @@ class DigitalJS {
         this.showCircuit();
     }
     async saveJSONToFile() {
+        await new Promise((resolve) => {
+            this.updateCircuitWaits.push(resolve);
+            this.panel.webview.postMessage({
+                command: 'savecircuit',
+            });
+        });
         console.assert(this.files.circuit);
         const json = this.toJSON();
         const str = JSON.stringify(json);
@@ -388,8 +396,9 @@ class DigitalJS {
             await this.saveJSONToFile();
         }
         catch (e) {
-            return vscode.window.showErrorMessage(`Saving to ${this.files.circuit} filed: ${e}`);
+            return vscode.window.showErrorMessage(`Saving to ${this.files.circuit} failed: ${e}`);
         }
+        return vscode.window.showInformationMessage(`Circuit saved to ${this.files.circuit}`);
     }
     async saveAsJSON() {
         const files = await vscode.window.showOpenDialog({
@@ -407,9 +416,20 @@ class DigitalJS {
         }
         catch (e) {
             this.files.circuit = origin_circuit;
-            return vscode.window.showErrorMessage(`Saving as ${file} filed: ${e}`);
+            return vscode.window.showErrorMessage(`Saving as ${file} failed: ${e}`);
         }
         this.files.refresh();
+    }
+    processCommand(message) {
+        switch (message.command) {
+            case 'updatecircuit':
+                this.circuit = message.circuit;
+                let waits = this.updateCircuitWaits;
+                this.updateCircuitWaits = [];
+                for (const resolve of waits)
+                    resolve(null);
+                return;
+        }
     }
     async createOrShowView() {
         const column = vscode.window.activeTextEditor ?
@@ -442,6 +462,7 @@ class DigitalJS {
             }
         });
         this.panel.webview.html = await this.getViewContent(this.panel.webview);
+        this.panel.webview.onDidReceiveMessage((msg) => this.processCommand(msg));
         vscode.commands.executeCommand('digitaljs-proj-files.focus');
     }
     async getViewContent(webview) {

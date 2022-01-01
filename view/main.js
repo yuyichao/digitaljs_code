@@ -7,6 +7,7 @@ import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import Split from 'split-grid';
+import { MonitorView } from './monitor.mjs';
 
 const vscode = window.acquireVsCodeApi();
 
@@ -121,11 +122,7 @@ class DigitalJS {
             this.monitor.loadWiresDesc(this.monitormem);
             this.monitormem = undefined;
         }
-        this.monitorview = new digitaljs.MonitorView({
-            model: this.monitor,
-            el: $('#monitor'),
-            removeButtonMarkup: '<vscode-button name="remove" style="vertical-align: middle;"><i class="codicon codicon-close"></i></vscode-button>'
-        });
+        this.monitorview = new MonitorView({ model: this.monitor, el: $('#monitor') });
         // TODO: IOPanel
         this.paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
         this.registerMarkers(this.paper);

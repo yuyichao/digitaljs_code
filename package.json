@@ -229,8 +229,12 @@
     "dependencies": {
         "@vscode/codicons": "^0.0.27",
         "@vscode/webview-ui-toolkit": "^0.8.4",
+        "3vl": "^1.0.0",
+        "backbone": "^1.4.0",
         "digitaljs": "github:yuyichao/digitaljs#dev",
         "digitaljs_lua": "^0.0.5",
-        "split-grid": "^1.0.11"
+        "resize-observer-polyfill": "^1.5.1",
+        "split-grid": "^1.0.11",
+        "wavecanvas": "^1.0.0"
     }
 }

@@ -14,6 +14,10 @@
     },
     "icon": "imgs/digitaljs.png",
     "categories": [
+        "Debuggers",
+        "Education",
+        "Programming Languages",
+        "Visualization",
         "Other"
     ],
     "activationEvents": [

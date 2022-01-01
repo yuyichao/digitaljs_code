@@ -241,8 +241,38 @@ class DigitalJS {
     getUri(webview, uri) {
         return webview.asWebviewUri(uri);
     }
-    doSynth() {
-        // TODO
+    showCircuit(transform) {
+        this.panel.webview.postMessage({
+            command: 'showcircuit',
+            circuit: this.circuit,
+            opts: { transform }
+        });
+    }
+    async doSynth() {
+        const data = {};
+        for (let file of this.files.sources.values()) {
+            // TODO: filter out lua files.
+            data[path.basename(file.path)] =
+                new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+        }
+        if (Object.keys(data).length == 0)
+            return vscode.window.showErrorMessage(`No source file added for synthesis.`);
+        const transform = this.synth_options.transform;
+        const opts = {
+            optimize: this.synth_options.opt,
+            fsm: this.synth_options.fsm,
+            fsmexpand: this.synth_options.fsmexpand,
+        };
+        let res;
+        try {
+            res = await requests.yosys2digitaljs({ files: data, options: opts });
+        }
+        catch (e) {
+            // TODO yosys messages
+            return vscode.window.showErrorMessage(`Synthesis error: ${e}`);
+        }
+        this.circuit = res.output;
+        this.showCircuit(transform);
     }
     pauseSim() {
         // TODO
@@ -283,9 +313,9 @@ class DigitalJS {
                 this.circuit[fld] = v;
             delete json[fld];
         }
-        // TODO load circuit
         this.extra_data = json;
         this.files.refresh();
+        this.showCircuit();
     }
     async saveJSONToFile() {
         console.assert(this.files.circuit);

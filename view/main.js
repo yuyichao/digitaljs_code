@@ -37,6 +37,7 @@ class DigitalJS {
             }
         });
         this.updateRunStates();
+        $('#monitorbox vscode-button').prop('disabled', true).off();
     }
 
     luaError(name, e) {
@@ -159,8 +160,8 @@ class DigitalJS {
             if ($('#monitorbox').height() == 0)
                 $('html > body > div').css('grid-template-rows', (idx, old) => {
                     const z = old.split(' ');
-                    z[1] = '3fr';
-                    z[3] = '1fr';
+                    z[0] = '3fr';
+                    z[2] = '1fr';
                     return z.join(' ');
                 });
         });
@@ -214,6 +215,7 @@ class DigitalJS {
             h.shutdown();
         this.helpers = {};
         this.updateRunStates();
+        $('#monitorbox vscode-button').prop('disabled', true).off();
     }
     pauseSim() {
         this.circuit.stop();

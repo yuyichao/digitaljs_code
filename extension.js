@@ -143,6 +143,13 @@ class FilesMgr {
     deleteSource(uri) {
         this.sources.delete(uri.path);
     }
+    toJSON() {
+        let res = [];
+        const circuit_path = path.dirname(this.circuit.path);
+        for (let file of this.sources.values())
+            res.push(path.relative(circuit_path, file.path));
+        return res;
+    }
 
     getTreeItem(element) {
         return element;
@@ -239,6 +246,12 @@ class DigitalJS {
     singleStepSim() {
         // TODO
     }
+    toJSON() {
+        return {
+            files: this.files.toJSON(),
+            ...this.extra_data
+        };
+    }
     loadJSON(json, uri) {
         this.files.reset(uri);
         if ('files' in json) {
@@ -252,6 +265,12 @@ class DigitalJS {
         // TODO
         this.extra_data = json;
         this.files.refresh();
+    }
+    async saveJSONToFile() {
+        console.assert(this.files.circuit);
+        const json = this.toJSON();
+        const str = JSON.stringify(json);
+        await vscode.workspace.fs.writeFile(this.files.circuit, new TextEncoder().encode(str));
     }
     async confirmUnsavedJSON() {
         // TODO: check and ask the user if the current circuit should be disgarded or saved.
@@ -273,6 +292,8 @@ class DigitalJS {
                 "Circuit JSON": ['json'],
             }
         });
+        if (!file)
+            return;
         let str;
         try {
             str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file[0]));
@@ -303,17 +324,41 @@ class DigitalJS {
                 "Lua script": ['lua'],
             }
         });
+        if (!files)
+            return;
         for (const file of files)
             this.files.addSource(file);
         this.files.refresh();
     }
-    saveJSON() {
-        // TODO
-        // TODO extra_json
+    async saveJSON() {
+        if (!this.files.circuit)
+            return this.saveAsJSON();
+        try {
+            await this.saveJSONToFile();
+        }
+        catch (e) {
+            return vscode.window.showErrorMessage(`Saving to ${this.files.circuit} filed: ${e}`);
+        }
     }
-    saveAsJSON() {
-        // TODO
-        // TODO extra_json
+    async saveAsJSON() {
+        const files = await vscode.window.showOpenDialog({
+            filters: {
+                "Circuit JSON": ['json'],
+            }
+        });
+        if (!files)
+            return;
+        const file = files[0];
+        const origin_circuit = this.files.circuit;
+        this.files.circuit = file;
+        try {
+            await this.saveJSONToFile();
+        }
+        catch (e) {
+            this.files.circuit = origin_circuit;
+            return vscode.window.showErrorMessage(`Saving as ${file} filed: ${e}`);
+        }
+        this.files.refresh();
     }
     createOrShowView() {
         const column = vscode.window.activeTextEditor ?

@@ -205,6 +205,9 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.singleStep',
                                             () => this.singleStepSim()));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.nextEvent',
+                                            () => this.nextEventSim()));
+        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.newJSON',
                                             () => this.newJSON()));
         context.subscriptions.push(
@@ -245,6 +248,9 @@ class DigitalJS {
         // TODO
     }
     singleStepSim() {
+        // TODO
+    }
+    nextEventSim() {
         // TODO
     }
     toJSON() {

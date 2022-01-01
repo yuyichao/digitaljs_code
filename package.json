@@ -3,6 +3,7 @@
     "displayName": "DigitalJS",
     "description": "DigitalJS integration for VS Code",
     "version": "0.0.1",
+    "publisher": "yuyichao",
     "engines": {
         "vscode": "^1.62.0"
     },

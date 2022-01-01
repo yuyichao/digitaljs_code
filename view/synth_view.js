@@ -13,7 +13,7 @@ function notifyOption() {
 notifyOption();
 
 function main() {
-    for (const opt of ['opt', 'transform', 'lint', 'fsmexpand']) {
+    for (const opt of ['opt', 'transform', /* 'lint', */ 'fsmexpand']) {
         const ele = document.getElementById(opt);
         ele.checked = options[opt];
         ele.addEventListener('change', () => {

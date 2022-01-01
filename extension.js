@@ -54,7 +54,7 @@ class SynthProvider {
 <body>
   <vscode-checkbox title="Enables Yosys optimizations of the synthesized circuit. This might make the circuit differ significantly to its HDL specification. This corresponds to the 'opt -full' Yosys command." id="opt">Optimize in Yosys</vscode-checkbox>
   <vscode-checkbox title="Enables post-processing of Yosys output to reduce the number of components and improve readability." id="transform" checked>Simplify diagram</vscode-checkbox>
-  <vscode-checkbox title="Enables checking for common problems using the Verilator compiler." id="lint" checked>Lint source code</vscode-checkbox>
+  <!-- <vscode-checkbox title="Enables checking for common problems using the Verilator compiler." id="lint" checked>Lint source code</vscode-checkbox> -->
   <vscode-dropdown title="Enables finite state machine processing in Yosys. This corresponds to the 'fsm' and 'fsm -nomap' Yosys commands." id="fsm">
     <vscode-option value="no">No FSM transform</vscode-option>
     <vscode-option value="yes">FSM transform</vscode-option>
@@ -185,7 +185,7 @@ class DigitalJS {
         this.synth_options = {
             opt: false,
             transform: true,
-            lint: true,
+            // lint: true,
             fsm: 'no', // (no)/yes/nomap
             fsmexpand: false
         };

@@ -20,6 +20,9 @@
         "Visualization",
         "Other"
     ],
+    "keywords": [
+        "verilog", "simulation"
+    ],
     "activationEvents": [
         "onCommand:digitaljs.openView"
     ],

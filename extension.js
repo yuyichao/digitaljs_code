@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
+const path = require('path');
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -92,6 +93,71 @@ class StatusProvider {
     }
 }
 
+class CircuitFile extends vscode.TreeItem {
+    constructor(uri) {
+        let name = 'Unnamed circuit';
+        if (uri)
+            name = path.basename(uri.path);
+        super(name, vscode.TreeItemCollapsibleState.Expanded);
+        this.iconPath = new vscode.ThemeIcon('circuit-board');
+        this.id = 'root-circuit';
+        this.resourceUri = uri;
+    }
+}
+
+class SourceFile extends vscode.TreeItem {
+    constructor(circuit, uri) {
+        let name;
+        if (circuit) {
+            name = path.relative(path.dirname(circuit.path), uri.path);
+        }
+        else {
+            name = path.basename(uri.path);
+        }
+        super(name, vscode.TreeItemCollapsibleState.None);
+        this.iconPath = new vscode.ThemeIcon('file');
+        this.id = uri.toString();
+        this.resourceUri = uri;
+    }
+}
+
+class FilesMgr {
+    constructor() {
+        this.circuit = undefined;
+        this.sources = new Map();
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    }
+    reset(circuit) {
+        this.circuit = circuit;
+        this.sources.clear();
+    }
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    addSource(uri) {
+        if (this.sources.has(uri.path))
+            return;
+        this.sources.set(uri.path, uri);
+    }
+    deleteSource(uri) {
+        this.sources.delete(uri.path);
+    }
+
+    getTreeItem(element) {
+        return element;
+    }
+    async getChildren(element) {
+        if (!element)
+            return [new CircuitFile(this.circuit)];
+        console.assert(element instanceof CircuitFile);
+        let res = [];
+        for (let file of this.sources.values())
+            res.push(new SourceFile(this.circuit, file));
+        return res;
+    }
+}
+
 class DigitalJS {
     constructor(context) {
         this.context = context;
@@ -104,6 +170,9 @@ class DigitalJS {
                                                  "webview-ui-toolkit", "dist", "toolkit.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
+
+        this.files = new FilesMgr();
+        this.extra_data = {};
 
         this.synth_options = {
             opt: false,
@@ -149,6 +218,8 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-status',
                                                       new StatusProvider(this), {}));
+        context.subscriptions.push(
+            vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
     }
     getUri(webview, uri) {
         return webview.asWebviewUri(uri);
@@ -168,11 +239,33 @@ class DigitalJS {
     singleStepSim() {
         // TODO
     }
-    async newJSON() {
+    loadJSON(json, uri) {
+        this.files.reset(uri);
+        if ('files' in json) {
+            const files = json.files;
+            delete json.files;
+            console.assert(uri);
+            for (const file of files) {
+                this.files.addSource(vscode.Uri.joinPath(uri, '..', file));
+            }
+        }
         // TODO
+        this.extra_data = json;
+        this.files.refresh();
+    }
+    async confirmUnsavedJSON() {
+        // TODO: check and ask the user if the current circuit should be disgarded or saved.
+        return true;
+    }
+    async newJSON() {
+        if (!(await this.confirmUnsavedJSON()))
+            return;
+        this.loadJSON({});
     }
     async openJSON() {
-        const files = await vscode.window.showOpenDialog({
+        if (!(await this.confirmUnsavedJSON()))
+            return;
+        const file = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectFolders: false,
             canSelectMany: false,
@@ -180,6 +273,23 @@ class DigitalJS {
                 "Circuit JSON": ['json'],
             }
         });
+        let str;
+        try {
+            str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file[0]));
+        }
+        catch (e) {
+            return vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
+        }
+        let json;
+        try {
+            json = JSON.parse(str);
+        }
+        catch (e) {
+            return vscode.window.showErrorMessage(`${file} is not a valid JSON file: ${e}`);
+        }
+        if (typeof json !== "object" || json === null)
+            return vscode.window.showErrorMessage(`${file} is not a valid JSON object.`);
+        this.loadJSON(json, file[0]);
     }
     async addFiles() {
         const files = await vscode.window.showOpenDialog({
@@ -193,12 +303,17 @@ class DigitalJS {
                 "Lua script": ['lua'],
             }
         });
+        for (const file of files)
+            this.files.addSource(file);
+        this.files.refresh();
     }
     saveJSON() {
         // TODO
+        // TODO extra_json
     }
     saveAsJSON() {
         // TODO
+        // TODO extra_json
     }
     createOrShowView() {
         const column = vscode.window.activeTextEditor ?

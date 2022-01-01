@@ -2,7 +2,6 @@
 
 const vscode = acquireVsCodeApi();
 
-window.addEventListener("load", main);
 let options = vscode.getState() || window.init_options;
 
 function notifyOption() {
@@ -34,3 +33,4 @@ function main() {
         vscode.postMessage({ command: "do-synth" });
     });
 }
+window.addEventListener("load", main);

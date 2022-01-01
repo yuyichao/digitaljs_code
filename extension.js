@@ -74,19 +74,25 @@ class StatusProvider {
     }
     resolveWebviewView(view, context, _token) {
         const ui_uri = this.djs.getUri(view.webview, this.djs.uiToolkitPath);
+        const status_uri = this.djs.getUri(view.webview, this.djs.statusJSPath);
         const icon_uri = this.djs.getUri(view.webview, this.djs.codIconsPath);
         view.webview.options = {
             enableScripts: true
         };
+        // TODO io pannel
+        this.djs.tickUpdated((tick) => {
+            view.webview.postMessage({ command: 'tick', tick });
+        });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <script type="module" src="${ui_uri}"></script>
+  <script type="module" src="${status_uri}"></script>
   <link href="${icon_uri}" rel="stylesheet"/>
 </head>
 <body>
-  <vscode-text-field id="clock" readonly>
+  <vscode-text-field id="clock" readonly value=${this.djs.tick}>
     <i slot="start" class="codicon codicon-clock"></i>
   </vscode-text-field>
 </body>
@@ -183,6 +189,7 @@ class DigitalJS {
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
         this.mainJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'view-bundle.js');
         this.synthJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'synth_view.js');
+        this.statusJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'status_view.js');
         this.uiToolkitPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                  "webview-ui-toolkit", "dist", "toolkit.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
@@ -195,6 +202,9 @@ class DigitalJS {
         this.files = new FilesMgr();
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        this.tick = 0;
+        this._tickUpdated = new vscode.EventEmitter();
+        this.tickUpdated = this._tickUpdated.event;
         this.extra_data = {};
         this.synth_options = { ...default_synth_options };
 
@@ -241,6 +251,10 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
     }
+    setTick(tick) {
+        this.tick = tick;
+        this._tickUpdated.fire(tick);
+    }
     async readSimWorker(file) {
         return new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
     }
@@ -248,6 +262,7 @@ class DigitalJS {
         return webview.asWebviewUri(uri);
     }
     showCircuit(transform) {
+        this.setTick(0);
         this.panel.webview.postMessage({
             command: 'showcircuit',
             circuit: this.circuit,
@@ -450,6 +465,9 @@ class DigitalJS {
                 this.updateCircuitWaits = [];
                 for (const resolve of waits)
                     resolve(null);
+                return;
+            case 'tick':
+                this.setTick(message.tick);
                 return;
         }
     }

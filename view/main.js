@@ -46,19 +46,37 @@ class DigitalJS {
             }]
         });
         window.addEventListener('message', event => {
-            const message = event.data;
-            switch (message.command) {
-                case 'showcircuit':
-                    this.mkCircuit(message.circuit, message.opts);
-                    return;
-                case 'savecircuit':
-                    vscode.postMessage({ command: "updatecircuit",
-                                         circuit: this.circuit.toJSON() });
-                    return;
-            }
+            this.processMessage(event.data);
         });
         this.updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
+    }
+
+    processMessage(message) {
+        switch (message.command) {
+            case 'showcircuit':
+                this.mkCircuit(message.circuit, message.opts);
+                return;
+            case 'savecircuit':
+                vscode.postMessage({ command: "updatecircuit",
+                                     circuit: this.circuit.toJSON() });
+                return;
+            case 'pausesim':
+                this.pauseSim();
+                return;
+            case 'startsim':
+                this.startSim();
+                return;
+            case 'singlestepsim':
+                this.singleStepSim();
+                return;
+            case 'nexteventsim':
+                this.nextEventSim();
+                return;
+            case 'fastforwardsim':
+                this.fastForwardSim();
+                return;
+        }
     }
 
     luaError(name, e) {

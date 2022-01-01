@@ -283,19 +283,19 @@ class DigitalJS {
         this.showCircuit(transform);
     }
     pauseSim() {
-        // TODO
+        this.panel.webview.postMessage({ command: 'pausesim' });
     }
     startSim() {
-        // TODO
+        this.panel.webview.postMessage({ command: 'startsim' });
     }
     fastForwardSim() {
-        // TODO
+        this.panel.webview.postMessage({ command: 'fastforwardsim' });
     }
     singleStepSim() {
-        // TODO
+        this.panel.webview.postMessage({ command: 'singlestepsim' });
     }
     nextEventSim() {
-        // TODO
+        this.panel.webview.postMessage({ command: 'nexteventsim' });
     }
     toJSON() {
         return {

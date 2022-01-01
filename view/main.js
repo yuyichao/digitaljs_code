@@ -11,6 +11,26 @@ import { MonitorView } from './monitor.mjs';
 
 const vscode = window.acquireVsCodeApi();
 
+function circuit_empty(circuit) {
+    if (!circuit)
+        return true;
+    if (Object.entries(circuit).length == 0)
+        return true;
+
+    const devices = circuit.devices;
+    if (devices && Object.entries(devices).length != 0)
+        return false;
+
+    const connectors = circuit.connectors;
+    if (connectors.length != 0)
+        return false;
+
+    const subcircuits = circuit.subcircuits;
+    if (subcircuits && Object.entries(subcircuits).length != 0)
+        return false;
+    return true;
+}
+
 class DigitalJS {
     constructor() {
         this.helpers = {};
@@ -107,6 +127,8 @@ class DigitalJS {
         if (opts.transform)
             data = digitaljs.transform.transformCircuit(data);
         this.destroyCircuit();
+        if (circuit_empty(data))
+            return;
         const circuit_opts = {
             layoutEngine: 'elkjs',
             engine: digitaljs.engines.WorkerEngine,

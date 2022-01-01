@@ -179,6 +179,7 @@ class DigitalJS {
                                                 "codicons", "dist", "codicon.css");
 
         this.files = new FilesMgr();
+        this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.extra_data = {};
 
         this.synth_options = {
@@ -249,6 +250,7 @@ class DigitalJS {
     toJSON() {
         return {
             files: this.files.toJSON(),
+            ...this.circuit,
             ...this.extra_data
         };
     }
@@ -262,7 +264,14 @@ class DigitalJS {
                 this.files.addSource(vscode.Uri.joinPath(uri, '..', file));
             }
         }
-        // TODO
+        this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        for (const fld of ['devices', 'connectors', 'subcircuits']) {
+            const v = json[fld];
+            if (v)
+                this.circuit[fld] = v;
+            delete json[fld];
+        }
+        // TODO load circuit
         this.extra_data = json;
         this.files.refresh();
     }

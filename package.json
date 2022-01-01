@@ -232,6 +232,7 @@
         "@vscode/codicons": "^0.0.27",
         "@vscode/webview-ui-toolkit": "^0.8.4",
         "digitaljs": "github:tilk/digitaljs",
-        "digitaljs_lua": "^0.0.5"
+        "digitaljs_lua": "^0.0.5",
+        "split-grid": "^1.0.11"
     }
 }

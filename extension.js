@@ -497,32 +497,23 @@ class DigitalJS {
   <div id="paper"></div>
   <div id="gutter_vert" class="gutter gutter-vertical"></div>
   <div id="monitorbox">
-    <div class="btn-toolbar" role="toolbar" aria-label="Toolbar">
-      <div class="symbola btn-group mr-2" role="group" aria-label="Scale control">
-        <button name="ppt_up" type="button" class="btn btn-secondary" title="Increase pixels per tick" disabled="true">+</button>
-        <button name="ppt_down" type="button" class="btn btn-secondary" title="Decrease pixels per tick" disabled="true">-</button>
-      </div>
-      <div class="input-group mr-2">
-        <div class="input-group-prepend">
-          <span class="input-group-text" title="Ticks per grid line">scale</span>
-        </div>
-        <input type="text" class="form-control" disabled="disabled" name="scale" />
-      </div>
-      <div class="symbola btn-group mr-2" role="group" aria-label="Time control">
-        <button name="live" type="button" class="btn btn-secondary" title="Live mode" disabled="true">▶</button>
-        <button name="left" type="button" class="btn btn-secondary" title="Move left" disabled="true">←</button>
-        <button name="right" type="button" class="btn btn-secondary" title="Move right" disabled="true">→</button>
-      </div>
-      <div class="input-group mr-2">
-        <div class="input-group-prepend">
-          <span class="input-group-text" title="Display range">range</span>
-        </div>
-        <input type="text" class="form-control" disabled="disabled" name="rangel" />
-        <div class="input-group-prepend input-group-append">
-          <span class="input-group-text">–</span>
-        </div>
-        <input type="text" class="form-control" disabled="disabled" name="rangeh" />
-      </div>
+    <div>
+      <vscode-button name="ppt_up" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
+      <vscode-button name="ppt_down" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
+      <vscode-tag style="vertical-align: middle;">scale</vscode-tag>
+      <vscode-text-field name="scale" readonly style="vertical-align: middle;">
+      </vscode-text-field>
+      <vscode-button name="live" disabled style="vertical-align: middle;"><i class="codicon codicon-play"></i></vscode-button>
+      <vscode-button name="left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
+      <vscode-button name="right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
+    </div>
+    <div>
+      <vscode-tag style="vertical-align: middle;">range</vscode-tag>
+      <vscode-text-field name="rangel" readonly style="vertical-align: middle;">
+      </vscode-text-field>
+      <vscode-tag style="vertical-align: middle;">-</vscode-tag>
+      <vscode-text-field name="rangeh" readonly style="vertical-align: middle;">
+      </vscode-text-field>
     </div>
     <div id="monitor">
     </div>

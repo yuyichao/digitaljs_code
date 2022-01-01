@@ -120,7 +120,11 @@ class DigitalJS {
             this.monitor.loadWiresDesc(this.monitormem);
             this.monitormem = undefined;
         }
-        this.monitorview = new digitaljs.MonitorView({model: this.monitor, el: $('#monitor') });
+        this.monitorview = new digitaljs.MonitorView({
+            model: this.monitor,
+            el: $('#monitor'),
+            removeButtonMarkup: '<vscode-button name="remove" style="vertical-align: middle;"><i class="codicon codicon-close"></i></vscode-button>'
+        });
         // TODO: IOPanel
         this.paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
         this.registerMarkers(this.paper);
@@ -132,25 +136,25 @@ class DigitalJS {
             this.updateRunStates();
         });
         this.updateRunStates();
-        $('#monitorbox button').prop('disabled', false);
-        $('#monitorbox button[name=ppt_up]').on('click', (e) => { this.monitorview.pixelsPerTick *= 2; });
-        $('#monitorbox button[name=ppt_down]').on('click', (e) => { this.monitorview.pixelsPerTick /= 2; });
-        $('#monitorbox button[name=left]').on('click', (e) => {
+        $('#monitorbox vscode-button').prop('disabled', false);
+        $('#monitorbox vscode-button[name=ppt_up]').on('click', (e) => { this.monitorview.pixelsPerTick *= 2; });
+        $('#monitorbox vscode-button[name=ppt_down]').on('click', (e) => { this.monitorview.pixelsPerTick /= 2; });
+        $('#monitorbox vscode-button[name=left]').on('click', (e) => {
             this.monitorview.live = false;
             this.monitorview.start -= this.monitorview.width / this.monitorview.pixelsPerTick / 4;
         });
-        $('#monitorbox button[name=right]').on('click', (e) => {
-            thils.monitorview.live = false;
+        $('#monitorbox vscode-button[name=right]').on('click', (e) => {
+            this.monitorview.live = false;
             this.monitorview.start += this.monitorview.width / this.monitorview.pixelsPerTick / 4;
         });
-        $('#monitorbox button[name=live]')
+        $('#monitorbox vscode-button[name=live]')
             .toggleClass('active', this.monitorview.live)
             .on('click', (e) => {
                 this.monitorview.live = !this.monitorview.live;
                 if (this.monitorview.live)
                     this.monitorview.start = this.circuit.tick - this.monitorview.width / this.monitorview.pixelsPerTick;
             });
-        this.monitorview.on('change:live', (live) => { $('#monitorbox button[name=live]').toggleClass('active', live) });
+        this.monitorview.on('change:live', (live) => { $('#monitorbox vscode-button[name=live]').toggleClass('active', live) });
         this.monitor.on('add', () => {
             if ($('#monitorbox').height() == 0)
                 $('html > body > div').css('grid-template-rows', (idx, old) => {
@@ -161,11 +165,11 @@ class DigitalJS {
                 });
         });
         const show_range = () => {
-            $('#monitorbox input[name=rangel]').val(Math.round(this.monitorview.start));
-            $('#monitorbox input[name=rangeh]').val(Math.round(this.monitorview.start + this.monitorview.width / this.monitorview.pixelsPerTick));
+            $('#monitorbox vscode-text-field[name=rangel]').val(Math.round(this.monitorview.start));
+            $('#monitorbox vscode-text-field[name=rangeh]').val(Math.round(this.monitorview.start + this.monitorview.width / this.monitorview.pixelsPerTick));
         };
         const show_scale = () => {
-            $('#monitorbox input[name=scale]').val(this.monitorview.gridStep);
+            $('#monitorbox vscode-text-field[name=scale]').val(this.monitorview.gridStep);
         };
         show_range();
         show_scale();

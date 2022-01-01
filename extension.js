@@ -193,6 +193,7 @@ class DigitalJS {
         this.updateCircuitWaits = [];
 
         this.files = new FilesMgr();
+        this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.extra_data = {};
         this.synth_options = { ...default_synth_options };
@@ -256,7 +257,8 @@ class DigitalJS {
     async doSynth() {
         const data = {};
         for (let file of this.files.sources.values()) {
-            // TODO: filter out lua files.
+            if (path.extname(file.path) == 'lua')
+                continue;
             data[path.basename(file.path)] =
                 new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
         }
@@ -277,6 +279,7 @@ class DigitalJS {
             return vscode.window.showErrorMessage(`Synthesis error: ${e}`);
         }
         this.circuit = res.output;
+        this.dirty = true;
         this.showCircuit(transform);
     }
     pauseSim() {
@@ -304,6 +307,7 @@ class DigitalJS {
     }
     loadJSON(json, uri) {
         this.files.reset(uri);
+        this.dirty = false;
         if ('files' in json) {
             const files = json.files;
             delete json.files;
@@ -338,9 +342,17 @@ class DigitalJS {
         const json = this.toJSON();
         const str = JSON.stringify(json);
         await vscode.workspace.fs.writeFile(this.files.circuit, new TextEncoder().encode(str));
+        this.dirty = false;
     }
     async confirmUnsavedJSON() {
-        // TODO: check and ask the user if the current circuit should be disgarded or saved.
+        if (!this.dirty)
+            return true;
+        const res = vscode.window.showErrorMessage(`Save current circuit?`,
+                                                   ['Yes', 'No', 'Cancel']);
+        if (!res || res == 'Cancel')
+            return false;
+        if (res == 'Yes')
+            await this.saveJSON();
         return true;
     }
     async newJSON() {
@@ -396,6 +408,7 @@ class DigitalJS {
         for (const file of files)
             this.files.addSource(file);
         this.files.refresh();
+        this.dirty = true;
     }
     async saveJSON() {
         if (!this.files.circuit)
@@ -432,6 +445,7 @@ class DigitalJS {
         switch (message.command) {
             case 'updatecircuit':
                 this.circuit = message.circuit;
+                this.dirty = true;
                 let waits = this.updateCircuitWaits;
                 this.updateCircuitWaits = [];
                 for (const resolve of waits)

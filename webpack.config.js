@@ -70,7 +70,9 @@ function web_ext_config(env, argv) {
         },
         output: {
             path: path.join(__dirname, outputDirectory),
-            filename: "web-extension.js"
+            filename: "web-extension.js",
+            libraryTarget: 'commonjs',
+            devtoolModuleFilenameTemplate: '../../[resource-path]'
         },
         resolve: {
             alias: {

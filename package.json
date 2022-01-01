@@ -12,6 +12,7 @@
     "engines": {
         "vscode": "^1.62.0"
     },
+    "icon": "imgs/digitaljs.png",
     "categories": [
         "Other"
     ],

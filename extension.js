@@ -177,6 +177,8 @@ class DigitalJS {
                                                  "webview-ui-toolkit", "dist", "toolkit.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
+        this.simWorker = this.readSimWorker(vscode.Uri.joinPath(ext_uri, 'dist',
+                                                                'digitaljs-sym-worker.js'));
 
         this.files = new FilesMgr();
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
@@ -231,6 +233,9 @@ class DigitalJS {
                                                       new StatusProvider(this), {}));
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
+    }
+    async readSimWorker(file) {
+        return new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
     }
     getUri(webview, uri) {
         return webview.asWebviewUri(uri);
@@ -375,7 +380,7 @@ class DigitalJS {
         }
         this.files.refresh();
     }
-    createOrShowView() {
+    async createOrShowView() {
         const column = vscode.window.activeTextEditor ?
                        vscode.window.activeTextEditor.viewColumn : undefined;
         if (this.panel) {
@@ -405,11 +410,14 @@ class DigitalJS {
                 vscode.commands.executeCommand('digitaljs-proj-files.focus');
             }
         });
-        this.panel.webview.html = this.getViewContent(this.panel.webview);
+        this.panel.webview.html = await this.getViewContent(this.panel.webview);
         vscode.commands.executeCommand('digitaljs-proj-files.focus');
     }
-    getViewContent(webview) {
+    async getViewContent(webview) {
         const js_uri = this.getUri(webview, this.mainJSPath);
+        const ui_uri = this.getUri(webview, this.uiToolkitPath);
+        const icon_uri = this.getUri(webview, this.codIconsPath);
+        const worker_script = await this.simWorker;
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -417,14 +425,16 @@ class DigitalJS {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
     window.acquireVsCodeApi = acquireVsCodeApi;
+    window.simWorkerUri = URL.createObjectURL(new Blob([${JSON.stringify(worker_script)}], {type: 'test/javascript'}));
   </script>
-  <script src="${js_uri}"></script>
+  <script type="module" src="${js_uri}"></script>
+  <script type="module" src="${ui_uri}"></script>
+  <link href="${icon_uri}" rel="stylesheet"/>
   <title>DigitalJS Code</title>
 </head>
 <body>
 <div id="grid">
-  <div id="paper">
-  </div>
+  <div id="paper"></div>
   <div id="gutter_vert" class="gutter gutter-vertical"></div>
   <div id="monitorbox">
     <div class="btn-toolbar" role="toolbar" aria-label="Toolbar">

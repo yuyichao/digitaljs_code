@@ -166,6 +166,15 @@ class FilesMgr {
     }
 }
 
+const default_synth_options = {
+    opt: false,
+    transform: true,
+    // lint: true,
+    fsm: 'no', // (no)/yes/nomap
+    fsmexpand: false
+};
+
+
 class DigitalJS {
     constructor(context) {
         this.context = context;
@@ -186,14 +195,8 @@ class DigitalJS {
         this.files = new FilesMgr();
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.extra_data = {};
+        this.synth_options = { ...default_synth_options };
 
-        this.synth_options = {
-            opt: false,
-            transform: true,
-            // lint: true,
-            fsm: 'no', // (no)/yes/nomap
-            fsmexpand: false
-        };
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openView',
                                             () => this.createOrShowView()));
@@ -294,6 +297,7 @@ class DigitalJS {
     toJSON() {
         return {
             files: this.files.toJSON(),
+            options: this.synth_options,
             ...this.circuit,
             ...this.extra_data
         };
@@ -308,6 +312,10 @@ class DigitalJS {
                 this.files.addSource(vscode.Uri.joinPath(uri, '..', file));
             }
         }
+        if ('options' in json) {
+            this.synth_options = json.options;
+            delete json.options;
+        }
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         for (const fld of ['devices', 'connectors', 'subcircuits']) {
             const v = json[fld];
@@ -317,7 +325,7 @@ class DigitalJS {
         }
         this.extra_data = json;
         this.files.refresh();
-        this.showCircuit();
+        this.showCircuit(false);
     }
     async saveJSONToFile() {
         await new Promise((resolve) => {

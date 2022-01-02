@@ -381,12 +381,43 @@ class DigitalJS {
         });
     }
     async doSynth() {
-        const data = {};
+        // Compute a short version of the file name
+        const basenames_map = {};
         for (let file of this.files.sources.values()) {
             if (path.extname(file.path) == '.lua')
                 continue;
-            data[path.basename(file.path)] =
-                new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+            let key = path.basename(file.path);
+            const files = basenames_map[key];
+            if (!files) {
+                basenames_map[key] = [file];
+            }
+            else {
+                files.push(file);
+            }
+        }
+        const file_map = {};
+        const circuit_file = this.files.circuit;
+        for (const basename in basenames_map) {
+            const files = basenames_map[basename];
+            if (files.length == 1) {
+                file_map[basename] = files[0];
+                continue;
+            }
+            for (const file of files) {
+                let name;
+                if (circuit_file) {
+                    name = path.relative(path.dirname(circuit_file.path), file.path);
+                }
+                else {
+                    name = file.path;
+                }
+                file_map[name] = file;
+            }
+        }
+        const data = {};
+        for (const key in file_map) {
+            data[key] = new TextDecoder().decode(
+                await vscode.workspace.fs.readFile(file_map[key]));
         }
         if (Object.keys(data).length == 0)
             return vscode.window.showErrorMessage(`No source file added for synthesis.`);

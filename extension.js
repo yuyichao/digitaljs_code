@@ -250,6 +250,10 @@ class DigitalJS {
                                                       new StatusProvider(this), {}));
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
+
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
     }
     setTick(tick) {
         this.tick = tick;
@@ -471,6 +475,14 @@ class DigitalJS {
                 return;
             case 'tick':
                 this.setTick(message.tick);
+                return;
+            case 'runstate':
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
+                                               message.hascircuit);
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
+                                               message.running);
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
+                                               message.hasPendingEvents);
                 return;
         }
     }

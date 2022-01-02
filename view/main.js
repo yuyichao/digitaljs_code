@@ -218,11 +218,11 @@ class DigitalJS {
     updateRunStates() {
         const circuit = this.circuit;
         if (circuit === undefined) {
-            vscode.postMessage({ command: "runstate",
+            vscode.postMessage({ command: "runstate", hascircuit: false,
                                  running: false, pendingEvents: false });
             return;
         }
-        vscode.postMessage({ command: "runstate",
+        vscode.postMessage({ command: "runstate", hascircuit: true,
                              running: circuit.running,
                              pendingEvents: circuit.hasPendingEvents });
         this.monitorview.autoredraw = !circuit.running;

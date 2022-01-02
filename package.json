@@ -134,27 +134,27 @@
                 },
                 {
                     "command": "digitaljs.pause",
-                    "when": "digitaljs.view_isfocus",
+                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && digitaljs.view_running",
                     "group": "navigation@1"
                 },
                 {
                     "command": "digitaljs.start",
-                    "when": "digitaljs.view_isfocus",
+                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
                     "group": "navigation@2"
                 },
                 {
                     "command": "digitaljs.fastForward",
-                    "when": "digitaljs.view_isfocus",
+                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
                     "group": "navigation@3"
                 },
                 {
                     "command": "digitaljs.singleStep",
-                    "when": "digitaljs.view_isfocus",
+                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
                     "group": "navigation@4"
                 },
                 {
                     "command": "digitaljs.nextEvent",
-                    "when": "digitaljs.view_isfocus",
+                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running && digitaljs.view_pendingEvents",
                     "group": "navigation@5"
                 }
             ],

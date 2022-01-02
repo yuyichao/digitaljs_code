@@ -262,6 +262,12 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.openView',
                                             () => this.openView()));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.openViewJSON',
+                                            (item) => this.openViewJSON(item)));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.openViewSource',
+                                            (item) => this.openViewSource(item)));
+        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.pause',
                                             () => this.pauseSim()));
         context.subscriptions.push(
@@ -680,6 +686,18 @@ class DigitalJS {
                 return;
             }
         }
+    }
+    async openViewJSON(uri) {
+        await this.createOrShowView(true);
+        if (!(await this.confirmUnsavedJSON()))
+            return;
+        return this.loadJSONFile(uri);
+    }
+    async openViewSource(item) {
+        await this.createOrShowView(true);
+        this.files.addSource(uri);
+        this.files.refresh();
+        this.dirty = true;
     }
     async openView() {
         const active_editor = vscode.window.activeTextEditor;

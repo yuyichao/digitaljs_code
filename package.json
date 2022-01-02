@@ -38,6 +38,18 @@
                 "category": "DigitalJS"
             },
             {
+                "command": "digitaljs.openViewJSON",
+                "title": "Open as circuit in DigitalJS",
+                "icon": "imgs/digitaljs.svg",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.openViewSource",
+                "title": "Add to DigitalJS",
+                "icon": "imgs/digitaljs.svg",
+                "category": "DigitalJS"
+            },
+            {
                 "command": "digitaljs.pause",
                 "title": "Pause",
                 "icon": "$(debug-pause)",
@@ -178,7 +190,14 @@
             ],
             "explorer/context": [
                 {
-                    "command": "digitaljs.openView"
+                    "command": "digitaljs.openViewJSON",
+                    "when": "resourceExtname == .json",
+                    "group": "navigation@99999"
+                },
+                {
+                    "command": "digitaljs.openViewSource",
+                    "when": "resourceExtname == .sv || resourceExtname == .v || resourceExtname == .vh || resourceExtname == .lua",
+                    "group": "navigation@99999"
                 }
             ],
             "view/item/context": [

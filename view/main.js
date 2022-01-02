@@ -154,7 +154,8 @@ class DigitalJS {
             if (!positions)
                 return;
             for (const pos of positions)
-                markers.push({from_line: pos.from.line, from_col: pos.from.column,
+                markers.push({name: pos.name,
+                              from_line: pos.from.line, from_col: pos.from.column,
                               to_line: pos.to.line, to_col: pos.to.column});
             vscode.postMessage({ command: "showmarker", markers });
         });

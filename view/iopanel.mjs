@@ -33,6 +33,7 @@ export class RemoteIOPanel extends Backbone.View {
     }
     shutdown() {
         this.stopListening();
+        this.vscode.postMessage({ command: "iopanel:view", view: [] });
     }
     _handleAdd(cell) {
         if (cell.isInput) {

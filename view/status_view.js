@@ -1,5 +1,7 @@
 //
 
+import $ from 'jquery';
+
 const vscode = window.acquireVsCodeApi();
 
 class Status {

@@ -112,6 +112,7 @@ class StatusProvider {
   <meta charset="UTF-8">
   <script>
     window.acquireVsCodeApi = acquireVsCodeApi;
+    window.init_view = ${JSON.stringify(this.djs.iopanelViews)};
   </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${status_uri}"></script>

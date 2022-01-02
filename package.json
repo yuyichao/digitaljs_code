@@ -33,7 +33,7 @@
         "commands": [
             {
                 "command": "digitaljs.openView",
-                "title": "Activate",
+                "title": "Open DigitalJS",
                 "icon": "imgs/digitaljs.svg",
                 "category": "DigitalJS"
             },
@@ -236,12 +236,12 @@
             ]
         },
         "configuration": {
-            "title": "Digital JS",
+            "title": "DigitalJS",
             "properties": {
                 "digitaljs.serverURL": {
                     "type": "string",
                     "default": "https://digitaljs.tilk.eu",
-                    "description": "Digital JS server URL"
+                    "description": "DigitalJS server URL"
                 }
             }
         }

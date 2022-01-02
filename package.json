@@ -96,6 +96,12 @@
                 "title": "Save As Circuit",
                 "icon": "$(save-as)",
                 "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.removeSource",
+                "title": "Remove",
+                "icon": "$(dash)",
+                "category": "DigitalJS"
             }
         ],
         "menus": {
@@ -161,6 +167,13 @@
             "explorer/context": [
                 {
                     "command": "digitaljs.openView"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "digitaljs.removeSource",
+                    "when": "view == digitaljs-proj-files && viewItem != root-circuit",
+                    "group": "inline"
                 }
             ]
         },

@@ -108,6 +108,7 @@ class CircuitFile extends vscode.TreeItem {
         super(name, vscode.TreeItemCollapsibleState.Expanded);
         this.iconPath = new vscode.ThemeIcon('circuit-board');
         this.id = 'root-circuit';
+        this.contextValue = 'root-circuit';
         this.resourceUri = uri;
     }
 }
@@ -241,6 +242,9 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.saveAsJSON',
                                             () => this.saveAsJSON()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.removeSource',
+                                            (item) => this.removeSource(item)));
 
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
@@ -461,6 +465,10 @@ class DigitalJS {
             this.files.circuit = origin_circuit;
             return vscode.window.showErrorMessage(`Saving as ${file} failed: ${e}`);
         }
+        this.files.refresh();
+    }
+    removeSource(item) {
+        this.files.deleteSource(item.resourceUri);
         this.files.refresh();
     }
     processCommand(message) {

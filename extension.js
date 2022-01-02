@@ -210,7 +210,7 @@ class DigitalJS {
 
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openView',
-                                            () => this.createOrShowView()));
+                                            () => this.openView()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.pause',
                                             () => this.pauseSim()));
@@ -375,22 +375,10 @@ class DigitalJS {
             return;
         this.loadJSON({});
     }
-    async openJSON() {
-        if (!(await this.confirmUnsavedJSON()))
-            return;
-        const file = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters: {
-                "Circuit JSON": ['json'],
-            }
-        });
-        if (!file)
-            return;
+    async loadJSONFile(file) {
         let str;
         try {
-            str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file[0]));
+            str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
         }
         catch (e) {
             return vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
@@ -404,7 +392,22 @@ class DigitalJS {
         }
         if (typeof json !== "object" || json === null)
             return vscode.window.showErrorMessage(`${file} is not a valid JSON object.`);
-        this.loadJSON(json, file[0]);
+        this.loadJSON(json, file);
+    }
+    async openJSON() {
+        if (!(await this.confirmUnsavedJSON()))
+            return;
+        const file = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: {
+                "Circuit JSON": ['json'],
+            }
+        });
+        if (!file)
+            return;
+        return this.loadJSONFile(file[0]);
     }
     async addFiles() {
         const files = await vscode.window.showOpenDialog({
@@ -469,6 +472,35 @@ class DigitalJS {
             case 'tick':
                 this.setTick(message.tick);
                 return;
+        }
+    }
+    async openView() {
+        const active_editor = vscode.window.activeTextEditor;
+        let uri;
+        if (active_editor)
+            uri = active_editor.document.uri;
+        await this.createOrShowView();
+        if (!uri)
+            return;
+        const ext = path.extname(uri.path);
+        if (ext == '.json') {
+            const res = await vscode.window.showInformationMessage(
+                `Open ${uri.path} as circuit?`, 'Yes', 'No');
+            if (res != 'Yes')
+                return;
+            if (!(await this.confirmUnsavedJSON()))
+                return;
+            return this.loadJSONFile(uri);
+        }
+        if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
+            const res = await vscode.window.showInformationMessage(
+                `Add ${uri.path} to current circuit?`, 'Yes', 'No');
+            if (res != 'Yes')
+                return;
+            this.files.addSource(uri);
+            this.files.refresh();
+            this.dirty = true;
+            return;
         }
     }
     async createOrShowView() {

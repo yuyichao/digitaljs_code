@@ -156,7 +156,8 @@ class DigitalJS {
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });
-        this.circuit.start();
+        if (!opts.pause)
+            this.circuit.start();
         this.monitor = new digitaljs.Monitor(this.circuit);
         if (this.monitormem) {
             this.monitor.loadWiresDesc(this.monitormem);

@@ -130,7 +130,8 @@ class SourceFile extends vscode.TreeItem {
 }
 
 class FilesMgr {
-    constructor() {
+    constructor(djs) {
+        this.djs = djs;
         this.circuit = undefined;
         this.sources = new Map();
         this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -141,6 +142,12 @@ class FilesMgr {
         this.sources.clear();
     }
     refresh() {
+        const state = { sources: [] };
+        if (this.circuit)
+            state.circuit = this.circuit.path;
+        for (let file of this.sources.values())
+            state.sources.push(file.path);
+        this.djs.context.workspaceState.update('digitaljs.files', state);
         this._onDidChangeTreeData.fire();
     }
     addSource(uri) {
@@ -200,7 +207,7 @@ class DigitalJS {
 
         this.updateCircuitWaits = [];
 
-        this.files = new FilesMgr();
+        this.files = new FilesMgr(this);
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.tick = 0;
@@ -258,6 +265,54 @@ class DigitalJS {
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
+        this.restore();
+    }
+    async restore() {
+        if (!(await this.restoreView()))
+            return;
+        // TODO options, extra data
+        await this.restoreFiles();
+        await this.restoreCircuit();
+        this.showCircuit(false, true);
+    }
+    async restoreView() {
+        const state = this.context.workspaceState.get('digitaljs.view');
+        if (!state || !state.column)
+            return false;
+        await this.createOrShowView(state.visible, state.column);
+        this.dirty = this.context.workspaceState.get('digitaljs.dirty');
+        return true;
+    }
+    async restoreFiles() {
+        const state = this.context.workspaceState.get('digitaljs.files');
+        if (!state)
+            return;
+        if (!state.circuit && (!state.sources || !state.sources.length))
+            return;
+        if (state.circuit)
+            this.files.circuit = vscode.Uri.file(state.circuit);
+        if (state.sources) {
+            for (const file of state.sources) {
+                this.files.addSource(vscode.Uri.file(file));
+            }
+        }
+        this.files.refresh();
+    }
+    async restoreCircuit() {
+        const circuit = this.context.workspaceState.get('digitaljs.circuit');
+        if (circuit) {
+            this.circuit = circuit;
+            return;
+        }
+        if (this.files.circuit) {
+            const json = await this.readJSONFile(this.files.circuit);
+            for (const fld of ['devices', 'connectors', 'subcircuits']) {
+                const v = json[fld];
+                if (v)
+                    this.circuit[fld] = v;
+                delete json[fld];
+            }
+        }
     }
     setTick(tick) {
         this.tick = tick;
@@ -269,12 +324,12 @@ class DigitalJS {
     getUri(webview, uri) {
         return webview.asWebviewUri(uri);
     }
-    showCircuit(transform) {
+    showCircuit(transform, pause) {
         this.setTick(0);
         this.panel.webview.postMessage({
             command: 'showcircuit',
             circuit: this.circuit,
-            opts: { transform }
+            opts: { transform, pause }
         });
     }
     async doSynth() {
@@ -303,6 +358,8 @@ class DigitalJS {
         }
         this.circuit = res.output;
         this.dirty = true;
+        this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+        this.context.workspaceState.update('digitaljs.dirty', true);
         this.showCircuit(transform);
     }
     pauseSim() {
@@ -331,6 +388,7 @@ class DigitalJS {
     loadJSON(json, uri) {
         this.files.reset(uri);
         this.dirty = false;
+        this.context.workspaceState.update('digitaljs.dirty', false);
         if ('files' in json) {
             const files = json.files;
             delete json.files;
@@ -350,6 +408,7 @@ class DigitalJS {
                 this.circuit[fld] = v;
             delete json[fld];
         }
+        this.context.workspaceState.update('digitaljs.circuit', this.circuit);
         this.extra_data = json;
         this.files.refresh();
         this.showCircuit(false);
@@ -366,6 +425,7 @@ class DigitalJS {
         const str = JSON.stringify(json);
         await vscode.workspace.fs.writeFile(this.files.circuit, new TextEncoder().encode(str));
         this.dirty = false;
+        this.context.workspaceState.update('digitaljs.dirty', false);
     }
     async confirmUnsavedJSON() {
         if (!this.dirty)
@@ -383,23 +443,33 @@ class DigitalJS {
             return;
         this.loadJSON({});
     }
-    async loadJSONFile(file) {
+    async readJSONFile(file) {
         let str;
         try {
             str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
         }
         catch (e) {
-            return vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
+            await vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
+            return;
         }
         let json;
         try {
             json = JSON.parse(str);
         }
         catch (e) {
-            return vscode.window.showErrorMessage(`${file} is not a valid JSON file: ${e}`);
+            await vscode.window.showErrorMessage(`${file} is not a valid JSON file: ${e}`);
+            return;
         }
-        if (typeof json !== "object" || json === null)
-            return vscode.window.showErrorMessage(`${file} is not a valid JSON object.`);
+        if (typeof json !== "object" || json === null) {
+            await vscode.window.showErrorMessage(`${file} is not a valid JSON object.`);
+            return;
+        }
+        return json;
+    }
+    async loadJSONFile(file) {
+        const json = await this.readJSONFile(file);
+        if (!json)
+            return;
         this.loadJSON(json, file);
     }
     async openJSON() {
@@ -435,6 +505,7 @@ class DigitalJS {
             this.files.addSource(file);
         this.files.refresh();
         this.dirty = true;
+        this.context.workspaceState.update('digitaljs.dirty', true);
     }
     async saveJSON() {
         if (!this.files.circuit)
@@ -476,6 +547,8 @@ class DigitalJS {
             case 'updatecircuit':
                 this.circuit = message.circuit;
                 this.dirty = true;
+                this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+                this.context.workspaceState.update('digitaljs.dirty', true);
                 let waits = this.updateCircuitWaits;
                 this.updateCircuitWaits = [];
                 for (const resolve of waits)
@@ -499,7 +572,7 @@ class DigitalJS {
         let uri;
         if (active_editor)
             uri = active_editor.document.uri;
-        await this.createOrShowView();
+        await this.createOrShowView(true);
         if (!uri)
             return;
         const ext = path.extname(uri.path);
@@ -523,11 +596,12 @@ class DigitalJS {
             return;
         }
     }
-    async createOrShowView() {
-        const column = vscode.window.activeTextEditor ?
-                       vscode.window.activeTextEditor.viewColumn : undefined;
+    async createOrShowView(focus, column) {
+        const active = vscode.window.activeTextEditor;
+        column = column || (active ? active.viewColumn : undefined);
         if (this.panel) {
-            this.panel.reveal(column);
+            if (focus)
+                this.panel.reveal(column);
             return;
         }
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
@@ -535,28 +609,47 @@ class DigitalJS {
         this.panel = vscode.window.createWebviewPanel(
             'digitaljs-mainview',
             'DigitalJS',
-            column || vscode.ViewColumn.One,
+            {
+                // The view is still brought to the front
+                // even with preserveFocus set to true...
+                preserveFocus: !focus,
+                viewColumn: column || vscode.ViewColumn.One
+            },
             {
                 enableScripts: true,
                 retainContextWhenHidden: true
             }
         );
+        this.context.workspaceState.update('digitaljs.view',
+                                           { column: this.panel.viewColumn, visible: true });
         this.panel.iconPath = this.iconPath;
         this.panel.onDidDispose(() => {
+            // TODO: would be nice if we can try to save here
+            // and maybe confirm if the user actually wants to close?
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             this.panel = undefined;
+            this.files.reset();
+            this.dirty = false;
+            this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+            this.extra_data = {};
+            this.context.workspaceState.update('digitaljs.view',
+                                               { column: undefined, visible: false });
         });
         this.panel.onDidChangeViewState((e) => {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus',
                                            this.panel.active);
-            if (this.panel.visible) {
+            if (this.panel.visible)
                 vscode.commands.executeCommand('digitaljs-proj-files.focus');
-            }
+            this.context.workspaceState.update('digitaljs.view',
+                                               { column: this.panel.viewColumn,
+                                                 visible: this.panel.visible });
         });
         this.panel.webview.html = await this.getViewContent(this.panel.webview);
         this.panel.webview.onDidReceiveMessage((msg) => this.processCommand(msg));
-        vscode.commands.executeCommand('digitaljs-proj-files.focus');
+        if (focus) {
+            vscode.commands.executeCommand('digitaljs-proj-files.focus');
+        }
     }
     async getViewContent(webview) {
         const js_uri = this.getUri(webview, this.mainJSPath);

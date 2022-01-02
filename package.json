@@ -25,7 +25,7 @@
         "simulation"
     ],
     "activationEvents": [
-        "onCommand:digitaljs.openView"
+        "onStartupFinished"
     ],
     "main": "./extension.js",
     "browser": "./dist/web-extension.js",

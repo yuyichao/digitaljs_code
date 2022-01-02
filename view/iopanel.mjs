@@ -1,4 +1,6 @@
-"use strict";
+//
+
+'use strict';
 
 import Backbone from 'backbone';
 import { Vector3vl } from '3vl';

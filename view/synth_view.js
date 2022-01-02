@@ -1,5 +1,7 @@
 //
 
+'use strict';
+
 const vscode = acquireVsCodeApi();
 
 let options = vscode.getState() || window.init_options;

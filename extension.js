@@ -395,6 +395,8 @@ class DigitalJS {
                 files.push(file);
             }
         }
+        if (Object.keys(basenames_map).length == 0)
+            return vscode.window.showErrorMessage(`No source file added for synthesis.`);
         const file_map = {};
         const circuit_file = this.files.circuit;
         for (const basename in basenames_map) {
@@ -419,8 +421,6 @@ class DigitalJS {
             data[key] = new TextDecoder().decode(
                 await vscode.workspace.fs.readFile(file_map[key]));
         }
-        if (Object.keys(data).length == 0)
-            return vscode.window.showErrorMessage(`No source file added for synthesis.`);
         const transform = this.synth_options.transform;
         const opts = {
             optimize: this.synth_options.opt,

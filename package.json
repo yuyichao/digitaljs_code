@@ -102,6 +102,18 @@
                 "title": "Remove",
                 "icon": "$(dash)",
                 "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.stopScript",
+                "title": "Stop script",
+                "icon": "$(debug-stop)",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.startScript",
+                "title": "Start script",
+                "icon": "$(debug-start)",
+                "category": "DigitalJS"
             }
         ],
         "menus": {
@@ -173,6 +185,16 @@
                 {
                     "command": "digitaljs.removeSource",
                     "when": "view == digitaljs-proj-files && viewItem != root-circuit",
+                    "group": "inline"
+                },
+                {
+                    "command": "digitaljs.startScript",
+                    "when": "view == digitaljs-proj-files && viewItem =~ /\\.lua$/",
+                    "group": "inline"
+                },
+                {
+                    "command": "digitaljs.stopScript",
+                    "when": "view == digitaljs-proj-files && viewItem =~ /\\.lua$/",
                     "group": "inline"
                 }
             ]

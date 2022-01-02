@@ -126,6 +126,7 @@ class SourceFile extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon('file');
         this.id = uri.toString();
         this.resourceUri = uri;
+        this.contextValue = uri.path;
     }
 }
 
@@ -134,12 +135,20 @@ class FilesMgr {
         this.djs = djs;
         this.circuit = undefined;
         this.sources = new Map();
+        this.script_running = {};
+        this.script_not_running = {};
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
     }
     reset(circuit) {
         this.circuit = circuit;
         this.sources.clear();
+        this.script_running = {};
+        this.script_not_running = {};
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
     }
     refresh() {
         const state = { sources: [] };
@@ -154,9 +163,41 @@ class FilesMgr {
         if (this.sources.has(uri.path))
             return;
         this.sources.set(uri.path, uri);
+        if (path.extname(uri.path) == '.lua') {
+            this.script_not_running[uri.path] = true;
+            vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
+                                           Array.from(Object.keys(this.script_not_running)));
+        }
     }
     deleteSource(uri) {
         this.sources.delete(uri.path);
+        if (path.extname(uri.path) == '.lua') {
+            delete this.script_not_running[uri.path];
+            delete this.script_running[uri.path];
+            vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
+                                           Array.from(Object.keys(this.script_running)));
+            vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
+                                           Array.from(Object.keys(this.script_not_running)));
+        }
+    }
+    scriptStarted(file) {
+        // Somehow using `viewItem in digitaljs.script_running`
+        // and `viewItem in digitaljs.script_not_running` to show the stop and start button
+        // doesn't work... The visibility of the icon never seem to be updated...
+        delete this.script_not_running[file];
+        this.script_running[file] = true;
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
+                                       Array.from(Object.keys(this.script_running)));
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
+                                       Array.from(Object.keys(this.script_not_running)));
+    }
+    scriptStopped(file) {
+        delete this.script_running[file];
+        this.script_not_running[file] = true;
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
+                                       Array.from(Object.keys(this.script_running)));
+        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
+                                       Array.from(Object.keys(this.script_not_running)));
     }
     toJSON() {
         let res = [];
@@ -252,6 +293,12 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.removeSource',
                                             (item) => this.removeSource(item)));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.startScript',
+                                            (item) => this.startScript(item)));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.stopScript',
+                                            (item) => this.stopScript(item)));
 
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
@@ -542,6 +589,20 @@ class DigitalJS {
         this.files.deleteSource(item.resourceUri);
         this.files.refresh();
     }
+    async startScript(item) {
+        const script = new TextDecoder().decode(await vscode.workspace.fs.readFile(item.resourceUri));
+        this.panel.webview.postMessage({
+            command: 'runlua',
+            name: item.resourceUri.path,
+            script
+        });
+    }
+    stopScript(item) {
+        this.panel.webview.postMessage({
+            command: 'stoplua',
+            name: item.resourceUri.path
+        });
+    }
     processCommand(message) {
         switch (message.command) {
             case 'updatecircuit':
@@ -565,6 +626,26 @@ class DigitalJS {
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
                                                message.hasPendingEvents);
                 return;
+            case 'luastarted':
+                this.files.scriptStarted(message.name);
+                return;
+            case 'luastop':
+                this.files.scriptStopped(message.name);
+                return;
+            case 'luaerror': {
+                let name = message.name;
+                if (this.files.circuit)
+                    name = path.relative(path.dirname(this.files.circuit.path), name);
+                vscode.window.showErrorMessage(`${name}: ${message.message}`);
+                return;
+            }
+            case 'luaprint': {
+                let name = message.name;
+                if (this.files.circuit)
+                    name = path.relative(path.dirname(this.files.circuit.path), name);
+                vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
+                return;
+            }
         }
     }
     async openView() {

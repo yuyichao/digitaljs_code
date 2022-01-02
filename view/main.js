@@ -76,14 +76,23 @@ class DigitalJS {
             case 'fastforwardsim':
                 this.fastForwardSim();
                 return;
+            case 'runlua':
+                this.runLua(message.name, message.script);
+                return;
+            case 'stoplua':
+                this.stopLua(message.name);
+                return;
         }
     }
 
     luaError(name, e) {
         vscode.postMessage({ command: "luaerror", name, message: e.luaMessage });
     }
-    makeLuaRunner(name, circuit) {
-        const runner = new digitaljs_lua.LuaRunner(circuit);
+    getLuaRunner(name) {
+        let runner = this.helpers[name];
+        if (runner)
+            return runner;
+        runner = new digitaljs_lua.LuaRunner(this.circuit);
         runner.on('thread:stop', (pid) => {
             vscode.postMessage({ command: "luastop", name });
         });
@@ -94,16 +103,19 @@ class DigitalJS {
             vscode.postMessage({ command: "luaprint", name, messages: msgs });
         });
         this.helpers[name] = runner;
+        return runner;
     }
     runLua(name, script) {
+        this.stopLua(name);
+        const runner = this.getLuaRunner(name);
         let pid;
         try {
-            pid = this.helpers[name].runThread(script);
-            this.helpers[name].running_pid = pid;
+            pid = runner.runThread(script);
+            runner.running_pid = pid;
         }
         catch (e) {
             if (e instanceof digitaljs_lua.LuaError) {
-                luaError(name, e);
+                this.luaError(name, e);
             }
             else {
                 throw e;

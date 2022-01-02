@@ -189,12 +189,12 @@
                 },
                 {
                     "command": "digitaljs.startScript",
-                    "when": "view == digitaljs-proj-files && viewItem =~ /\\.lua$/",
+                    "when": "view == digitaljs-proj-files && viewItem in digitaljs.script_not_running",
                     "group": "inline"
                 },
                 {
                     "command": "digitaljs.stopScript",
-                    "when": "view == digitaljs-proj-files && viewItem =~ /\\.lua$/",
+                    "when": "view == digitaljs-proj-files && viewItem in digitaljs.script_running",
                     "group": "inline"
                 }
             ]

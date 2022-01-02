@@ -181,15 +181,15 @@ class FilesMgr {
         }
     }
     scriptStarted(file) {
-        // Somehow using `viewItem in digitaljs.script_running`
-        // and `viewItem in digitaljs.script_not_running` to show the stop and start button
-        // doesn't work... The visibility of the icon never seem to be updated...
         delete this.script_not_running[file];
         this.script_running[file] = true;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
                                        Array.from(Object.keys(this.script_running)));
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
                                        Array.from(Object.keys(this.script_not_running)));
+        // The view item doesn't seem to be watching for the context change
+        // to redraw the icons so we need to refresh it after updating the running state.
+        this._onDidChangeTreeData.fire();
     }
     scriptStopped(file) {
         delete this.script_running[file];
@@ -198,6 +198,7 @@ class FilesMgr {
                                        Array.from(Object.keys(this.script_running)));
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
                                        Array.from(Object.keys(this.script_not_running)));
+        this._onDidChangeTreeData.fire();
     }
     toJSON() {
         let res = [];

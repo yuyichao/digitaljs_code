@@ -63,6 +63,11 @@ class DigitalJS {
     }
 
     processMessage(message) {
+        if (message.command.startsWith('iopanel:')) {
+            if (this.iopanel)
+                this.iopanel.processMessage(message);
+            return;
+        }
         switch (message.command) {
             case 'showcircuit':
                 this.mkCircuit(message.circuit, message.opts);

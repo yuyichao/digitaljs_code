@@ -12,6 +12,16 @@ export class RemoteIOPanel extends Backbone.View {
         this.listenTo(this.model._graph, 'remove', this._handleRemove);
         this.listenTo(this.model, "display:add", () => { this.render() });
     }
+    processMessage(message) {
+        switch (message.command) {
+            case 'iopanel:update': {
+                const updater = this.updater[message.id];
+                if (updater) {
+                    updater(message.value);
+                }
+            }
+        }
+    }
     render() {
         this.view = [];
         this.updater = {};

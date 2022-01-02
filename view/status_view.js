@@ -1,6 +1,6 @@
 //
 
-const vscode = acquireVsCodeApi();
+const vscode = window.acquireVsCodeApi();
 
 class Status {
     constructor() {

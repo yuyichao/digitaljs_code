@@ -42,6 +42,31 @@ function main_view_config(env, argv) {
     };
 }
 
+function status_view_config(env, argv) {
+    const devMode = argv.mode !== "production";
+    return {
+        name: 'status-view',
+        entry: "./view/status_view.js",
+        output: {
+            path: path.join(__dirname, outputDirectory),
+            filename: "status_view.js"
+        },
+        module: {
+            rules: [
+                {
+                    test: require.resolve('jquery'),
+                    loader: 'expose-loader',
+                    options: {
+                        exposes: ['$']
+                    }
+                },
+            ]
+        },
+        plugins: [
+        ],
+    };
+}
+
 function digitaljs_worker_config(env, argv) {
     const devMode = argv.mode !== "production";
     return {
@@ -97,4 +122,4 @@ function web_ext_config(env, argv) {
     };
 }
 
-module.exports = [main_view_config, digitaljs_worker_config, web_ext_config];
+module.exports = [main_view_config, status_view_config, digitaljs_worker_config, web_ext_config];

@@ -110,6 +110,9 @@ class StatusProvider {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script>
+    window.acquireVsCodeApi = acquireVsCodeApi;
+  </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${status_uri}"></script>
   <link href="${icon_uri}" rel="stylesheet"/>
@@ -264,7 +267,7 @@ class DigitalJS {
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
         this.mainJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'view-bundle.js');
         this.synthJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'synth_view.js');
-        this.statusJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'status_view.js');
+        this.statusJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'status_view.js');
         this.uiToolkitPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                  "webview-ui-toolkit", "dist", "toolkit.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",

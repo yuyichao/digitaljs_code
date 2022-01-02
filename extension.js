@@ -492,6 +492,7 @@ class DigitalJS {
         this.panel.iconPath = this.iconPath;
         this.panel.onDidDispose(() => {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             this.panel = undefined;
         });
         this.panel.onDidChangeViewState((e) => {

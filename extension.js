@@ -79,9 +79,11 @@ class StatusProvider {
         view.webview.options = {
             enableScripts: true
         };
-        // TODO io pannel
         this.djs.tickUpdated((tick) => {
             view.webview.postMessage({ command: 'tick', tick });
+        });
+        this.djs.iopanelMessage((message) => {
+            view.webview.postMessage(message);
         });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">
@@ -95,6 +97,8 @@ class StatusProvider {
   <vscode-text-field id="clock" readonly value=${this.djs.tick}>
     <i slot="start" class="codicon codicon-clock"></i>
   </vscode-text-field>
+  <div id="iopanel">
+  </div>
 </body>
 </html>`;
     }
@@ -257,6 +261,9 @@ class DigitalJS {
         this.tickUpdated = this._tickUpdated.event;
         this.extra_data = {};
         this.synth_options = { ...default_synth_options };
+
+        this._iopanelMessage = new vscode.EventEmitter();
+        this.iopanelMessage = this._iopanelMessage.event;
 
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openView',
@@ -643,6 +650,10 @@ class DigitalJS {
         });
     }
     processCommand(message) {
+        if (message.command.startsWith('iopanel:')) {
+            this._iopanelMessage.fire(message);
+            return;
+        }
         switch (message.command) {
             case 'updatecircuit':
                 this.circuit = message.circuit;
@@ -686,6 +697,9 @@ class DigitalJS {
                 return;
             }
         }
+    }
+    iopanelUpdateValue(id, value) {
+        this.panel.webview.postMessage({ command: 'iopanel:update', id, value });
     }
     async openViewJSON(uri) {
         await this.createOrShowView(true);

@@ -252,6 +252,8 @@ class DigitalJS {
                                                                 'digitaljs-sym-worker.js'));
 
         this.updateCircuitWaits = [];
+        this.iopanelViews = [];
+        this.iopanelViewIndices = {};
 
         this.files = new FilesMgr(this);
         this.dirty = false;
@@ -651,7 +653,7 @@ class DigitalJS {
     }
     processCommand(message) {
         if (message.command.startsWith('iopanel:')) {
-            this._iopanelMessage.fire(message);
+            this.processIOPanelMessage(message);
             return;
         }
         switch (message.command) {
@@ -697,6 +699,24 @@ class DigitalJS {
                 return;
             }
         }
+    }
+    processIOPanelMessage(message) {
+        // Cache the state here for the status view at initialization time.
+        switch (message.command) {
+            case 'iopanel:view': {
+                this.iopanelViewIndices = {};
+                for (const idx in message.view)
+                    this.iopanelViewIndices[message.view[idx]] = idx;
+                this.iopanelViews = message.view;
+            }
+            case 'iopanel:update': {
+                const idx = this.iopanelViewIndices[message.id];
+                if (idx !== undefined) {
+                    this.iopanelViews[idx].value = message.value;
+                }
+            }
+        }
+        this._iopanelMessage.fire(message);
     }
     iopanelUpdateValue(id, value) {
         this.panel.webview.postMessage({ command: 'iopanel:update', id, value });

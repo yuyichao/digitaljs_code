@@ -157,7 +157,9 @@ class DigitalJS {
                 markers.push({name: pos.name,
                               from_line: pos.from.line, from_col: pos.from.column,
                               to_line: pos.to.line, to_col: pos.to.column});
-            vscode.postMessage({ command: "showmarker", markers });
+            if (markers.length) {
+                vscode.postMessage({ command: "showmarker", markers });
+            }
         });
         paper.on('cell:mouseout', (cellView) => {
             vscode.postMessage({ command: "clearmarker" });

@@ -43,12 +43,7 @@ class DigitalJS {
         window.addEventListener('message', event => {
             this.processMessage(event.data);
         });
-        this.initialized = new Promise((resolve) => {
-            $(window).on('load', () => {
-                this.initialize();
-                resolve(null);
-            });
-        });
+        $(window).on('load', () => this.initialize());
     }
 
     initialize() {
@@ -60,10 +55,12 @@ class DigitalJS {
         });
         this.updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
+        // Release the messages from the main extension
+        // (though the run state update should've already realeased it...)
+        vscode.postMessage({ command: 'initialized' });
     }
 
     async processMessage(message) {
-        await this.initialized;
         if (message.command.startsWith('iopanel:')) {
             if (this.iopanel)
                 this.iopanel.processMessage(message);

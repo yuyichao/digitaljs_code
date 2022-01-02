@@ -410,7 +410,7 @@ class DigitalJS {
     }
     showCircuit(transform, pause) {
         this.setTick(0);
-        this.panel.webview.postMessage({
+        this.postPanelMessage({
             command: 'showcircuit',
             circuit: this.circuit,
             opts: { transform, pause }
@@ -479,19 +479,19 @@ class DigitalJS {
         this.showCircuit(transform);
     }
     pauseSim() {
-        this.panel.webview.postMessage({ command: 'pausesim' });
+        this.postPanelMessage({ command: 'pausesim' });
     }
     startSim() {
-        this.panel.webview.postMessage({ command: 'startsim' });
+        this.postPanelMessage({ command: 'startsim' });
     }
     fastForwardSim() {
-        this.panel.webview.postMessage({ command: 'fastforwardsim' });
+        this.postPanelMessage({ command: 'fastforwardsim' });
     }
     singleStepSim() {
-        this.panel.webview.postMessage({ command: 'singlestepsim' });
+        this.postPanelMessage({ command: 'singlestepsim' });
     }
     nextEventSim() {
-        this.panel.webview.postMessage({ command: 'nexteventsim' });
+        this.postPanelMessage({ command: 'nexteventsim' });
     }
     toJSON() {
         return {
@@ -532,7 +532,7 @@ class DigitalJS {
     async saveJSONToFile() {
         await new Promise((resolve) => {
             this.updateCircuitWaits.push(resolve);
-            this.panel.webview.postMessage({
+            this.postPanelMessage({
                 command: 'savecircuit',
             });
         });
@@ -660,19 +660,37 @@ class DigitalJS {
     }
     async startScript(item) {
         const script = new TextDecoder().decode(await vscode.workspace.fs.readFile(item.resourceUri));
-        this.panel.webview.postMessage({
+        this.postPanelMessage({
             command: 'runlua',
             name: item.resourceUri.path,
             script
         });
     }
     stopScript(item) {
-        this.panel.webview.postMessage({
+        this.postPanelMessage({
             command: 'stoplua',
             name: item.resourceUri.path
         });
     }
+    postPanelMessage(msg) {
+        if (!this.panel)
+            return;
+        if (!this.panel_initialized) {
+            this.panel_pending_messages.push(msg);
+        }
+        else {
+            this.panel.webview.postMessage(msg);
+        }
+    }
     processCommand(message) {
+        // we don't really care what message it is but if we've got a message
+        // then the initialization has finished...
+        if (!this.panel_initialized) {
+            for (const msg of this.panel_pending_messages)
+                this.panel.webview.postMessage(msg);
+            this.panel_pending_messages.length = 0;
+            this.panel_initialized = true;
+        }
         if (message.command.startsWith('iopanel:')) {
             this.processIOPanelMessage(message);
             return;
@@ -740,7 +758,7 @@ class DigitalJS {
         this._iopanelMessage.fire(message);
     }
     iopanelUpdateValue(id, value) {
-        this.panel.webview.postMessage({ command: 'iopanel:update', id, value });
+        this.postPanelMessage({ command: 'iopanel:update', id, value });
     }
     async openViewJSON(uri) {
         await this.createOrShowView(true);
@@ -807,6 +825,8 @@ class DigitalJS {
                 retainContextWhenHidden: true
             }
         );
+        this.panel_initialized = false;
+        this.panel_pending_messages = [];
         this.context.workspaceState.update('digitaljs.view',
                                            { column: this.panel.viewColumn, visible: true });
         this.panel.iconPath = this.iconPath;

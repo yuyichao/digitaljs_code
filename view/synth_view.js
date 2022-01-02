@@ -6,7 +6,7 @@ let options = vscode.getState() || window.init_options;
 
 function notifyOption() {
     vscode.setState(options);
-    vscode.postMessage({ command: "update-options" });
+    vscode.postMessage({ command: "update-options", options });
 }
 
 notifyOption();

@@ -28,7 +28,7 @@ class SynthProvider {
                 this.djs.doSynth();
                 return;
             case 'update-options':
-                this.djs.synth_options = { ...context.state };
+                this.djs.synth_options = { ...message.options };
                 return;
         }
     }

@@ -39,14 +39,23 @@ class DigitalJS {
         this.monitormem = undefined;
         this.monitorview = undefined;
         this.paper = undefined;
+        window.addEventListener('message', event => {
+            this.processMessage(event.data);
+        });
+        this.initialized = new Promise((resolve) => {
+            $(window).on('load', () => {
+                this.initialize();
+                resolve(null);
+            });
+        });
+    }
+
+    initialize() {
         Split({
             rowGutters: [{
                 element: document.querySelector('#gutter_vert'),
                 track: 1
             }]
-        });
-        window.addEventListener('message', event => {
-            this.processMessage(event.data);
         });
         this.updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
@@ -153,7 +162,8 @@ class DigitalJS {
             vscode.postMessage({ command: "clearmarker" });
         });
     }
-    mkCircuit(data, opts) {
+    async mkCircuit(data, opts) {
+        await this.initialized;
         if (opts.transform)
             data = digitaljs.transform.transformCircuit(data);
         this.destroyCircuit();
@@ -287,6 +297,4 @@ class DigitalJS {
     }
 }
 
-$(window).on('load', () => {
-    const digitaljs = new DigitalJS();
-});
+new DigitalJS();

@@ -8,6 +8,7 @@ import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
+import { RemoteIOPanel } from './iopanel.mjs';
 
 const vscode = window.acquireVsCodeApi();
 
@@ -189,7 +190,9 @@ class DigitalJS {
             this.monitormem = undefined;
         }
         this.monitorview = new MonitorView({ model: this.monitor, el: $('#monitor') });
-        // TODO: IOPanel
+        this.iopanel = new RemoteIOPanel({
+            model: this.circuit, el: $(''), djs: this, vscode: vscode
+        });
         this.paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
         this.registerMarkers(this.paper);
         this.circuit.on('new:paper', (paper) => { this.registerMarkers(paper); });
@@ -273,6 +276,10 @@ class DigitalJS {
         if (this.monitor) {
             this.monitor.stopListening();
             this.monitor = undefined;
+        }
+        if (this.iopanel) {
+            this.iopanel.shutdown();
+            this.iopanel = undefined;
         }
         for (const h of Object.values(this.helpers))
             h.shutdown();

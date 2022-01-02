@@ -151,11 +151,11 @@ class FilesMgr {
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
     }
     refresh() {
-        const state = { sources: [] };
+        const state = { sources_uri: [] };
         if (this.circuit)
-            state.circuit = this.circuit.path;
+            state.circuit_uri = this.circuit.toString();
         for (let file of this.sources.values())
-            state.sources.push(file.path);
+            state.sources_uri.push(file.toString());
         this.djs.context.workspaceState.update('digitaljs.files', state);
         this._onDidChangeTreeData.fire();
     }
@@ -334,13 +334,13 @@ class DigitalJS {
         const state = this.context.workspaceState.get('digitaljs.files');
         if (!state)
             return;
-        if (!state.circuit && (!state.sources || !state.sources.length))
+        if (!state.circuit_uri && (!state.sources_uri || !state.sources_uri.length))
             return;
-        if (state.circuit)
-            this.files.circuit = vscode.Uri.file(state.circuit);
-        if (state.sources) {
-            for (const file of state.sources) {
-                this.files.addSource(vscode.Uri.file(file));
+        if (state.circuit_uri)
+            this.files.circuit = vscode.Uri.parse(state.circuit_uri);
+        if (state.sources_uri) {
+            for (const file of state.sources_uri) {
+                this.files.addSource(vscode.Uri.parse(file));
             }
         }
         this.files.refresh();

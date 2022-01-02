@@ -62,7 +62,8 @@ class DigitalJS {
         $('#monitorbox vscode-button').prop('disabled', true).off();
     }
 
-    processMessage(message) {
+    async processMessage(message) {
+        await this.initialized;
         if (message.command.startsWith('iopanel:')) {
             if (this.iopanel)
                 this.iopanel.processMessage(message);
@@ -171,8 +172,7 @@ class DigitalJS {
             vscode.postMessage({ command: "clearmarker" });
         });
     }
-    async mkCircuit(data, opts) {
-        await this.initialized;
+    mkCircuit(data, opts) {
         if (opts.transform)
             data = digitaljs.transform.transformCircuit(data);
         this.destroyCircuit();

@@ -362,9 +362,9 @@ class DigitalJS {
     async confirmUnsavedJSON() {
         if (!this.dirty)
             return true;
-        const res = vscode.window.showErrorMessage(`Save current circuit?`,
-                                                   ['Yes', 'No', 'Cancel']);
-        if (!res || res == 'Cancel')
+        const res = await vscode.window.showErrorMessage(`Save current circuit?`,
+                                                         'Yes', 'No', 'Cancel');
+        if (!res)
             return false;
         if (res == 'Yes')
             await this.saveJSON();

@@ -272,7 +272,7 @@ class DigitalJS {
     async doSynth() {
         const data = {};
         for (let file of this.files.sources.values()) {
-            if (path.extname(file.path) == 'lua')
+            if (path.extname(file.path) == '.lua')
                 continue;
             data[path.basename(file.path)] =
                 new TextDecoder().decode(await vscode.workspace.fs.readFile(file));

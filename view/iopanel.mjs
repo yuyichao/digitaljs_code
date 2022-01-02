@@ -8,8 +8,8 @@ export class RemoteIOPanel extends Backbone.View {
         this.djs = args.djs;
         this.vscode = args.vscode;
         this.render();
-        this.listenTo(this.model._graph, 'add', this._handleAdd);
-        this.listenTo(this.model._graph, 'remove', this._handleRemove);
+        this.listenTo(this.model._graph, 'add', () => { this.render() });
+        this.listenTo(this.model._graph, 'remove', () => { this.render() });
         this.listenTo(this.model, "display:add", () => { this.render() });
     }
     processMessage(message) {
@@ -23,25 +23,18 @@ export class RemoteIOPanel extends Backbone.View {
         }
     }
     render() {
+        this.stopListening();
         this.view = [];
         this.updater = {};
         for (const element of this.model.getInputCells())
-            this._handleAddInput(element);
+            this._addInput(element);
         for (const element of this.model.getOutputCells())
-            this._handleAddOutput(element);
+            this._addOutput(element);
         this.vscode.postMessage({ command: "iopanel:view", view: this.view });
     }
     shutdown() {
         this.stopListening();
         this.vscode.postMessage({ command: "iopanel:view", view: [] });
-    }
-    _handleAdd(cell) {
-        if (cell.isInput) {
-            this._handleAddInput(cell);
-        }
-        else if (cell.isOutput) {
-            this._handleAddOutput(cell);
-        }
     }
     _createRow(cell) {
         return {
@@ -49,7 +42,7 @@ export class RemoteIOPanel extends Backbone.View {
             label: cell.get('net') || cell.get('label')
         }
     }
-    _handleAddInput(cell) {
+    _addInput(cell) {
         const row = this._createRow(cell);
         row.dir = 'input';
         this.view.push(row);
@@ -64,7 +57,7 @@ export class RemoteIOPanel extends Backbone.View {
                                       id: row.id, value: sigs.out.toBin() });
         });
     }
-    _handleAddOutput(cell) {
+    _addOutput(cell) {
         const row = this._createRow(cell);
         row.dir = 'output';
         this.view.push(row);
@@ -75,9 +68,5 @@ export class RemoteIOPanel extends Backbone.View {
             this.vscode.postMessage({ command: "iopanel:update",
                                       id: row.id, value: cell.getOutput().toBin() });
         });
-    }
-    _handleRemove(cell) {
-        this.stopListening(cell);
-        this.render();
     }
 };

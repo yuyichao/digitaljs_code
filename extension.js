@@ -424,8 +424,9 @@ class DigitalJS {
         const transform = this.synth_options.transform;
         const opts = {
             optimize: this.synth_options.opt,
-            fsm: this.synth_options.fsm,
+            fsm: this.synth_options.fsm == "no" ? "" : this.synth_options.fsm,
             fsmexpand: this.synth_options.fsmexpand,
+            lint: false
         };
         let res;
         try {

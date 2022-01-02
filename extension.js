@@ -79,11 +79,32 @@ class StatusProvider {
         view.webview.options = {
             enableScripts: true
         };
-        this.djs.tickUpdated((tick) => {
-            view.webview.postMessage({ command: 'tick', tick });
+        let initialized = false;
+        // Preserving the order of the messages.
+        const pending_messages = [];
+        view.webview.onDidReceiveMessage((msg) => {
+            // we don't really care what message it is but if we've got a message
+            // then the initialization has finished...
+            if (!initialized) {
+                for (const msg of pending_messages)
+                    view.webview.postMessage(msg);
+                pending_messages.length = 0;
+                initialized = true;
+            }
         });
-        this.djs.iopanelMessage((message) => {
-            view.webview.postMessage(message);
+        const postMessage = (msg) => {
+            if (!initialized) {
+                pending_messages.push(msg);
+            }
+            else {
+                view.webview.postMessage(msg);
+            }
+        };
+        this.djs.tickUpdated(async (tick) => {
+            postMessage({ command: 'tick', tick });
+        });
+        this.djs.iopanelMessage(async (message) => {
+            postMessage(message);
         });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">

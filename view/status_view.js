@@ -4,20 +4,16 @@ const vscode = acquireVsCodeApi();
 
 class Status {
     constructor() {
-        this.initialized = new Promise((resolve) => {
-            window.addEventListener("load", () => {
-                this.initialize();
-                resolve(null);
-            });
-        });
         window.addEventListener('message', event => this.processMessage(event));
+        window.addEventListener("load", () => this.initialize());
     }
     initialize() {
         this.clock = document.getElementById("clock");
+        // Release the messages from the main extension
+        vscode.postMessage({ command: 'initialized' });
     }
     async processMessage(event) {
         const message = event.data;
-        await this.initialized;
         switch (message.command) {
             case 'tick':
                 this.clock.value = message.tick;

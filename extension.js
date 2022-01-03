@@ -7,6 +7,11 @@
 const vscode = require('vscode');
 const path = require('path');
 const requests = require('./src/requests.js');
+const crypto = require('crypto');
+
+function hash_sha512(data) {
+    return crypto.createHash('sha512').update(data).digest('hex');
+}
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -174,6 +179,7 @@ class FilesMgr {
     constructor(djs) {
         this.djs = djs;
         this.circuit = undefined;
+        this.source_map = {};
         this.sources = new Map();
         this.script_running = {};
         this.script_not_running = {};
@@ -264,6 +270,68 @@ class FilesMgr {
     }
 }
 
+class SourceInfo {
+    constructor(uri, mtime, sha512) {
+        this.uri = uri;
+        this.mtime = mtime;
+        this.sha512 = sha512;
+    }
+    toWorkspace() {
+        return { uri: this.uri.toString(), mtime: this.mtime, sha512: this.sha512 };
+    }
+    toCircuit(circuit_dir) {
+        // Remove time stamps and convert file paths to relative path.
+        return { relpath: path.relative(circuit_dir, this.uri.path), sha512: this.sha512 };
+    }
+    static storeMapWorkspace(source_map) {
+        const res = {};
+        for (const key in source_map)
+            res[key] = source_map[key].toWorkspace();
+        return res;
+    }
+    static storeMapCircuit(circuit, source_map) {
+        const circuit_dir = path.dirname(circuit.path);
+        const res = {};
+        for (const key in source_map)
+            res[key] = source_map[key].toCircuit(circuit_dir);
+        return res;
+    }
+    static fromWorkspace(data) {
+        return new SourceInfo(vscode.Uri.parse(data.uri), data.mtime, data.sha512);
+    }
+    static fromCircuit(circuit_uri, json) {
+        const relpath = json.relpath;
+        if (!relpath)
+            return;
+        return new SourceInfo(vscode.Uri.joinPath(circuit_uri, '..', relpath),
+                              undefined, json.sha512);
+    }
+    static loadMapWorkspace(storage) {
+        if (!storage)
+            return {};
+        const res = {};
+        for (const key in storage) {
+            const info = SourceInfo.fromWorkspace(storage[key]);
+            if (!info)
+                continue;
+            res[key] = info;
+        }
+        return res;
+    }
+    static loadMapCircuit(circuit, source_map_in) {
+        if (source_map_in)
+            return {};
+        const source_map_out = {};
+        for (const key in source_map_in) {
+            const info = SourceInfo.fromCircuit(source_map_in[key]);
+            if (!info)
+                continue;
+            source_map_out[key] = info;
+        }
+        return source_map_out;
+    }
+}
+
 const default_synth_options = {
     opt: false,
     transform: true,
@@ -296,6 +364,7 @@ class DigitalJS {
         this.files = new FilesMgr(this);
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        this.source_map = {};
         this.tick = 0;
         this._tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this._tickUpdated.event;
@@ -410,6 +479,8 @@ class DigitalJS {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
         if (circuit) {
             this.circuit = circuit;
+            this.source_map = SourceInfo.loadMapWorkspace(
+                this.context.workspaceState.get('digitaljs.source_map'));
             return true;
         }
         return false;
@@ -428,6 +499,16 @@ class DigitalJS {
                     }
                 }
                 delete json[fld];
+            }
+            if (json.source_map) {
+                if (load_circuit) {
+                    this.source_map = SourceInfo.loadMapCircuit(this.files.circuit,
+                                                                json.source_map);
+                    this.context.workspaceState.update(
+                        'digitaljs.source_map',
+                        SourceInfo.storeMapWorkspace(this.source_map));
+                }
+                delete json.source_map;
             }
             if (!opt && json.options)
                 this.synth_options = json.options;
@@ -454,7 +535,7 @@ class DigitalJS {
             opts: { transform, pause }
         });
     }
-    async doSynth() {
+    createSourceMapForSynth() {
         // Compute a short version of the file name
         const basenames_map = {};
         for (let file of this.files.sources.values()) {
@@ -469,14 +550,16 @@ class DigitalJS {
                 files.push(file);
             }
         }
-        if (Object.keys(basenames_map).length == 0)
-            return vscode.window.showErrorMessage(`No source file added for synthesis.`);
-        const file_map = {};
+        if (Object.keys(basenames_map).length == 0) {
+            vscode.window.showErrorMessage(`No source file added for synthesis.`);
+            return;
+        }
+        const source_map = {};
         const circuit_file = this.files.circuit;
         for (const basename in basenames_map) {
             const files = basenames_map[basename];
             if (files.length == 1) {
-                file_map[basename] = files[0];
+                source_map[basename] = new SourceInfo(files[0]);
                 continue;
             }
             for (const file of files) {
@@ -487,14 +570,44 @@ class DigitalJS {
                 else {
                     name = file.path;
                 }
-                file_map[name] = file;
+                source_map[name] = new SourceInfo(file);
             }
         }
+        return source_map;
+    }
+    async loadSourcesForSynth(source_map) {
         const data = {};
-        for (const key in file_map) {
-            data[key] = new TextDecoder().decode(
-                await vscode.workspace.fs.readFile(file_map[key]));
+        const docs = {};
+        for (const doc of vscode.workspace.textDocuments)
+            docs[doc.uri.toString()] = doc;
+        for (const key in source_map) {
+            const info = source_map[key];
+            const uri = info.uri;
+            const uri_str = uri.toString();
+            const doc = docs[uri_str];
+            if (doc && doc.isDirty) {
+                const res = await vscode.window.showInformationMessage(
+                    `File ${key} has unsaved changes. Save before synthesis?`, 'Yes', 'No');
+                if (!res)
+                    return;
+                if (res == 'Yes') {
+                    await doc.save();
+                }
+            }
+            const stat = await vscode.workspace.fs.stat(uri);
+            info.mtime = stat.mtime;
+            const content = new TextDecoder().decode(
+                await vscode.workspace.fs.readFile(uri));
+            info.sha512 = hash_sha512(content);
+            data[key] = content;
         }
+        return data;
+    }
+    async doSynth() {
+        const source_map = this.createSourceMapForSynth();
+        if (!source_map)
+            return;
+        const data = await this.loadSourcesForSynth(source_map);
         const transform = this.synth_options.transform;
         const opts = {
             optimize: this.synth_options.opt,
@@ -515,9 +628,12 @@ class DigitalJS {
             }
             return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);
         }
+        this.source_map = source_map;
         this.circuit = res.output;
         this.dirty = true;
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+        this.context.workspaceState.update('digitaljs.source_map',
+                                           SourceInfo.storeMapWorkspace(source_map));
         this.context.workspaceState.update('digitaljs.dirty', true);
         this.showCircuit(transform);
         this.panel.reveal();
@@ -541,6 +657,7 @@ class DigitalJS {
         return {
             files: this.files.toJSON(),
             options: this.synth_options,
+            source_map: SourceInfo.storeMapCircuit(this.files.circuit, this.source_map),
             ...this.circuit,
             ...this.extra_data
         };
@@ -569,6 +686,12 @@ class DigitalJS {
             delete json[fld];
         }
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+        if ('source_map' in json) {
+            this.source_map = SourceInfo.loadMapCircuit(uri, json.source_map);
+            delete json.source_map;
+        }
+        this.context.workspaceState.update('digitaljs.source_map',
+                                           SourceInfo.storeMapWorkspace(this.source_map));
         this.extra_data = json;
         this.files.refresh();
         this.showCircuit(false);
@@ -883,6 +1006,7 @@ class DigitalJS {
             this.files.reset();
             this.dirty = false;
             this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+            this.source_map = {};
             this.extra_data = {};
             this.context.workspaceState.update('digitaljs.view',
                                                { column: undefined, visible: false });

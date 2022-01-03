@@ -205,6 +205,13 @@ class DigitalJS {
             this.updateRunStates();
         });
         this.updateRunStates();
+        const live_btn = $('#monitorbox vscode-button[name=live]');
+        const live_btn_icon = live_btn.find('i.codicon');
+        const set_live = (live) => {
+            live_btn_icon.toggleClass('codicon-debug-pause', live)
+                         .toggleClass('codicon-debug-start', !live);
+            live_btn.prop('title', live ? 'Pause plot' : 'Live plot');
+        };
         $('#monitorbox vscode-button').prop('disabled', false);
         $('#monitorbox vscode-button[name=ppt_up]').on('click', (e) => { this.monitorview.pixelsPerTick *= 2; });
         $('#monitorbox vscode-button[name=ppt_down]').on('click', (e) => { this.monitorview.pixelsPerTick /= 2; });
@@ -216,14 +223,13 @@ class DigitalJS {
             this.monitorview.live = false;
             this.monitorview.start += this.monitorview.width / this.monitorview.pixelsPerTick / 4;
         });
-        $('#monitorbox vscode-button[name=live]')
-            .toggleClass('active', this.monitorview.live)
-            .on('click', (e) => {
-                this.monitorview.live = !this.monitorview.live;
+        set_live(this.monitorview.live);
+        live_btn.on('click', (e) => {
+            this.monitorview.live = !this.monitorview.live;
                 if (this.monitorview.live)
                     this.monitorview.start = this.circuit.tick - this.monitorview.width / this.monitorview.pixelsPerTick;
             });
-        this.monitorview.on('change:live', (live) => { $('#monitorbox vscode-button[name=live]').toggleClass('active', live) });
+        this.monitorview.on('change:live', set_live);
         this.monitor.on('add', () => {
             if ($('#monitorbox').height() == 0)
                 $('html > body > div').css('grid-template-rows', (idx, old) => {

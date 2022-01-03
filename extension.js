@@ -891,14 +891,14 @@ class DigitalJS {
   <div id="gutter_vert" class="gutter gutter-vertical"></div>
   <div id="monitorbox">
     <div>
-      <vscode-button name="ppt_up" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
-      <vscode-button name="ppt_down" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
+      <vscode-button name="ppt_up" title="Increase pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
+      <vscode-button name="ppt_down" title="Decrease pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
       <span style="color:var(--foreground);vertical-align:middle;">scale</span>
       <vscode-text-field name="scale" readonly style="vertical-align: middle;">
       </vscode-text-field>
-      <vscode-button name="live" disabled style="vertical-align: middle;"><i class="codicon codicon-play"></i></vscode-button>
-      <vscode-button name="left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
-      <vscode-button name="right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
+      <vscode-button name="live" title="Pause plot" disabled style="vertical-align: middle;"><i class="codicon codicon-debug-pause"></i></vscode-button>
+      <vscode-button name="left" title="Move left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
+      <vscode-button name="right" title="Move right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
     </div>
     <div>
       <span style="color:var(--foreground);vertical-align:middle;">range</span>

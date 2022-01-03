@@ -44,7 +44,9 @@ function getWireName(wire) {
 export class MonitorView extends Backbone.View {
     initialize(args) {
         this._width = 800;
-        this._settings = extendSettings(defaultSettings, {start: 0, pixelsPerTick: 5, gridStep: 1});
+        this._settings = extendSettings(defaultSettings,
+                                        { start: 0, pixelsPerTick: 5, gridStep: 1,
+                                          textColor: this.$el.css('--foreground') });
         this._settingsFor = new Map();
         this._live = true;
         this._autoredraw = false;
@@ -229,6 +231,9 @@ export class MonitorView extends Backbone.View {
         const display3vl = this.model._circuit._display3vl;
         const canvas = this.$('tr[wireid="'+wireid+'"]').find('canvas');
         const waveform = this.model._wires.get(wireid).waveform;
+        // Something is triggering redraw when the vscode theme changes
+        // so this appears to be good enough for now...
+        this._settings.textColor = canvas.css("--foreground");
         drawWaveform(waveform, canvas[0].getContext('2d'), this._settingsFor.get(wireid), display3vl);
     }
     _handleAdd(wire) {

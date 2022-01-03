@@ -310,6 +310,6 @@
         "path-browserify": "^1.0.1",
         "resize-observer-polyfill": "^1.5.1",
         "split-grid": "^1.0.11",
-        "wavecanvas": "^1.0.0"
+        "wavecanvas": "github:yuyichao/wavecanvas#text-color"
     }
 }

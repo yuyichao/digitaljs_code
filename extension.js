@@ -492,6 +492,7 @@ class DigitalJS {
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
         this.context.workspaceState.update('digitaljs.dirty', true);
         this.showCircuit(transform);
+        this.panel.reveal();
     }
     pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });

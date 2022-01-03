@@ -507,8 +507,13 @@ class DigitalJS {
             res = await requests.yosys2digitaljs({ files: data, options: opts });
         }
         catch (e) {
-            // TODO yosys messages
-            return vscode.window.showErrorMessage(`Synthesis error: ${e}`);
+            const error = e.error;
+            const yosys_stderr = e.yosys_stderr;
+            if (error === undefined && yosys_stderr === undefined) {
+                console.log(error);
+                return vscode.window.showErrorMessage(`Unknown yosys2digitaljs error.`);
+            }
+            return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);
         }
         this.circuit = res.output;
         this.dirty = true;

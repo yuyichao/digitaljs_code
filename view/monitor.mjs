@@ -57,7 +57,8 @@ export class MonitorView extends Backbone.View {
         this.listenTo(this.model, 'remove', this._handleRemove);
         this.listenTo(this.model._circuit, "display:add", () => { this.render() });
         this.listenTo(this.model._circuit, 'postUpdateGates', (tick) => {
-            if (this._live) this.start = tick - this._width / this._settings.pixelsPerTick;
+            if (this._live)
+                this.start = tick - this._width / this._settings.pixelsPerTick;
             this._settings.present = tick;
             if (!this._idle) this._idle = requestIdleCallback(() => {
                 this._drawAll();
@@ -177,7 +178,9 @@ export class MonitorView extends Backbone.View {
     }
     set autoredraw(val) {
         this._autoredraw = val;
-        if (val) this._drawAll();
+        if (val) {
+            this._drawAll();
+        }
     }
     get width() {
         return this._width;
@@ -186,7 +189,8 @@ export class MonitorView extends Backbone.View {
         return this._live;
     }
     set live(val) {
-        if (this.live == val) return;
+        if (this.live == val)
+            return;
         this._live = val;
         this.trigger('change:live', val);
         this.trigger('change');
@@ -195,7 +199,8 @@ export class MonitorView extends Backbone.View {
         return this._settings.start;
     }
     set start(val) {
-        if (this._settings.start == val) return;
+        if (this._settings.start == val)
+            return;
         this._settings.start = val;
         this.trigger('change:start', val);
         this.trigger('change');

@@ -51,8 +51,8 @@ export class MonitorView extends Backbone.View {
         this._idle = null;
         this._removeButtonMarkup = '<vscode-button name="remove" style="vertical-align: middle;"><i class="codicon codicon-close"></i></vscode-button>';
         this._baseSelectorMarkup = baseSelectMarkupHTML;
-        this._bitTriggerMarkup = '<vscode-dropdown position="below" name="trigger" title="Trigger"><vscode-option value="none"></vscode-option><vscode-option value="rising">↑</vscode-option><vscode-option value="falling">↓</vscode-option><vscode-option value="risefall">↕</vscode-option><vscode-option value="undef">x</vscode-option></vscode-dropdown>';
-        this._busTriggerMarkup = '<vscode-text-field type="text" name="trigger" title="Trigger" placeholder="trigger" pattern="[0-9a-fx]*"></vscode-text-field>';
+        this._bitTriggerMarkup = '<vscode-dropdown position="below" style="vertical-align: middle;" name="trigger" title="Trigger"><vscode-option value="none"></vscode-option><vscode-option value="rising">↑</vscode-option><vscode-option value="falling">↓</vscode-option><vscode-option value="risefall">↕</vscode-option><vscode-option value="undef">x</vscode-option></vscode-dropdown>';
+        this._busTriggerMarkup = '<vscode-text-field type="text" style="vertical-align: middle;" name="trigger" title="Trigger" placeholder="trigger" pattern="[0-9a-fx]*"></vscode-text-field>';
         this.listenTo(this.model, 'add', this._handleAdd);
         this.listenTo(this.model, 'remove', this._handleRemove);
         this.listenTo(this.model._circuit, "display:add", () => { this.render() });

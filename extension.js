@@ -95,6 +95,11 @@ class StatusProvider {
                 pending_messages.length = 0;
                 initialized = true;
             }
+            switch (msg.command) {
+                case 'iopanel:update':
+                    this.djs.iopanelUpdateValue(msg.id, msg.value);
+                    return;
+            }
         });
         const postMessage = (msg) => {
             if (!initialized) {
@@ -126,8 +131,8 @@ class StatusProvider {
   <vscode-text-field id="clock" readonly value=${this.djs.tick}>
     <i slot="start" class="codicon codicon-clock"></i>
   </vscode-text-field>
-  <div id="iopanel">
-  </div>
+  <table id="iopanel">
+  </table>
 </body>
 </html>`;
     }
@@ -350,7 +355,9 @@ class DigitalJS {
                                                       new SynthProvider(this), {}));
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-status',
-                                                      new StatusProvider(this), {}));
+                                                      new StatusProvider(this),
+                                                      { webviewOptions: {
+                                                          retainContextWhenHidden: true }}));
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
 

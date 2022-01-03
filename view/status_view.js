@@ -66,12 +66,127 @@ class Status {
         window.addEventListener("load", () => this.initialize());
         this.dp3vl = new Display3vl();
         this.dp3vl.addDisplay(new Display3vlASCII());
+        this.widgets = {};
     }
     initialize() {
         this.clock = $('#clock');
         this.iopanel = $('#iopanel');
         // Release the messages from the main extension
         vscode.postMessage({ command: 'initialized' });
+        this.updateWidgets(window.init_view);
+    }
+    updateWidgets(views) {
+        const old_widgets = this.widgets;
+        this.widgets = {};
+        for (const key in old_widgets)
+            old_widgets[key].widget.detach();
+        for (const view of views) {
+            const old_w = old_widgets[view.id];
+            if (old_w && old_w.dir == view.dir && old_w.bits == view.bits) {
+                old_w.updater(view.value);
+                this.iopanel.append(old_w.widget);
+                this.widgets[view.id] = old_w;
+                continue;
+            }
+            const w = this.newWidget(view);
+            this.iopanel.append(w.widget);
+            this.widgets[view.id] = w;
+        }
+    }
+    newWidget(view) {
+        const is_input = view.dir == 'input';
+        const w = view.bits == 1 ? this.newBitWidget(view, is_input) :
+                  this.newNumberWidget(view, is_input);
+        w.dir = view.dir;
+        w.bits = view.bits;
+        return w;
+    }
+    newBitWidget(view, is_input) {
+        const id = view.id;
+        const widget = $(`<tr>
+  <td>
+    <span class="djs-io-name" style="color:var(--foreground);vertical-align:middle;"></span>
+  </td>
+  <td>
+    <vscode-checkbox ${is_input ? '' : 'readonly'} style="vertical-align:middle;"></vscode-checkbox>
+  </td>
+  <td></td>
+</tr>`);
+        widget.find('span.djs-io-name').text(view.label);
+        const checkbox = widget.find('vscode-checkbox');
+        const updater = (bin) => {
+            const value = Vector3vl.fromBin(bin, 1);
+            if (!is_input)
+                checkbox.prop('indeterminate', !value.isDefined);
+            checkbox.prop('checked', value.isHigh);
+        };
+        updater(view.value);
+        if (is_input) {
+            checkbox.change(() => {
+                vscode.postMessage({ command: 'iopanel:update', id,
+                                     value: checkbox.prop('checked') ? '1' : '0' });
+            });
+        }
+        return { widget, updater };
+    }
+    newNumberWidget(view, is_input) {
+        const id = view.id;
+        const widget = $(`<tr>
+  <td>
+    <span class="djs-io-name" style="color:var(--foreground);vertical-align:middle;"></span>
+  </td>
+  <td>
+    <vscode-text-field ${is_input ? '' : 'readonly'} style="vertical-align:middle;"></vscode-text-field>
+  </td>
+  <td>
+    <vscode-dropdown style="vertical-align: middle; min-width: 4em;">
+      <vscode-option value="hex">hex</vscode-option>
+      <vscode-option value="bin">bin</vscode-option>
+      <vscode-option value="oct">oct</vscode-option>
+      <vscode-option value="dec">dec</vscode-option>
+    </vscode-dropdown>
+  </td>
+</tr>`);
+        widget.find('span.djs-io-name').text(view.label);
+        const input = widget.find('vscode-text-field');
+        const base_sel = widget.find('vscode-dropdown');
+        const bits = view.bits;
+        let base;
+        let bin = view.value;
+        const updater = (new_bin) => {
+            bin = new_bin;
+            // Note that even if the value didn't change, the display value might.
+            const value = Vector3vl.fromBin(bin, bits);
+            input.val(this.dp3vl.show(base, value));
+        };
+        const base_updater = (new_base) => {
+            if (base === new_base)
+                return;
+            base = new_base;
+            const sz = this.dp3vl.size(base, bits);
+            input.prop('size', sz);
+            if (is_input)
+                input.prop('maxlength', sz)
+                     .prop('pattern', this.dp3vl.pattern(base));
+            updater(bin);
+        };
+        base_updater('hex');
+        base_sel.change(() => {
+            base_updater(base_sel.val());
+        });
+        if (is_input) {
+            input.change((e) => {
+                if (!this.dp3vl.validate(base, e.target.value, bits))
+                    return;
+                const value = this.dp3vl.read(base, e.target.value, bits);
+                const new_bin = value.toBin(value);
+                if (new_bin == bin)
+                    return;
+                bin = new_bin;
+                vscode.postMessage({ command: 'iopanel:update', id, value: bin });
+            });
+        }
+        return { widget, updater };
     }
     async processMessage(event) {
         const message = event.data;
@@ -79,6 +194,15 @@ class Status {
             case 'tick':
                 this.clock.val(message.tick);
                 return;
+            case 'iopanel:view':
+                this.updateWidgets(message.view);
+                return;
+            case 'iopanel:update': {
+                const w = this.widgets[message.id];
+                if (w)
+                    w.updater(message.value);
+                return;
+            }
         }
     }
 }

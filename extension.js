@@ -33,6 +33,8 @@ class SynthProvider {
                 return;
             case 'update-options':
                 this.djs.synth_options = { ...message.options };
+                this.djs.context.workspaceState.update('digitaljs.synth_options',
+                                                       this.djs.synth_options);
                 return;
         }
     }
@@ -195,6 +197,8 @@ class FilesMgr {
         for (let file of this.sources.values())
             state.sources_uri.push(file.toString());
         this.djs.context.workspaceState.update('digitaljs.files', state);
+        this.djs.context.workspaceState.update('digitaljs.synth_options',
+                                               this.djs.synth_options);
         this._onDidChangeTreeData.fire();
     }
     addSource(uri) {
@@ -369,9 +373,14 @@ class DigitalJS {
     async restore() {
         if (!(await this.restoreView()))
             return;
-        // TODO options, extra data
         await this.restoreFiles();
-        await this.restoreCircuit();
+        const circuit_restored = await this.restoreCircuit();
+        try {
+            await this.restoreMisc(!circuit_restored);
+        }
+        catch (e) {
+            // Ignore
+        }
         this.showCircuit(false, true);
     }
     async restoreView() {
@@ -401,16 +410,30 @@ class DigitalJS {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
         if (circuit) {
             this.circuit = circuit;
-            return;
+            return true;
         }
+        return false;
+    }
+    async restoreMisc(load_circuit) {
+        const opt = this.context.workspaceState.get('digitaljs.synth_options');
+        if (opt)
+            this.synth_options = opt;
         if (this.files.circuit) {
             const json = await this.readJSONFile(this.files.circuit);
             for (const fld of ['devices', 'connectors', 'subcircuits']) {
-                const v = json[fld];
-                if (v)
-                    this.circuit[fld] = v;
+                if (load_circuit) {
+                    const v = json[fld];
+                    if (v) {
+                        this.circuit[fld] = v;
+                    }
+                }
                 delete json[fld];
             }
+            if (!opt && json.options)
+                this.synth_options = json.options;
+            delete json.files;
+            delete json.options;
+            this.extra_data = json;
         }
     }
     setTick(tick) {

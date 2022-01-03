@@ -893,7 +893,7 @@ class DigitalJS {
     <div>
       <vscode-button name="ppt_up" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
       <vscode-button name="ppt_down" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
-      <vscode-tag style="vertical-align: middle;">scale</vscode-tag>
+      <span style="color:var(--foreground);vertical-align:middle;">scale</span>
       <vscode-text-field name="scale" readonly style="vertical-align: middle;">
       </vscode-text-field>
       <vscode-button name="live" disabled style="vertical-align: middle;"><i class="codicon codicon-play"></i></vscode-button>
@@ -901,10 +901,10 @@ class DigitalJS {
       <vscode-button name="right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
     </div>
     <div>
-      <vscode-tag style="vertical-align: middle;">range</vscode-tag>
+      <span style="color:var(--foreground);vertical-align:middle;">range</span>
       <vscode-text-field name="rangel" readonly style="vertical-align: middle;">
       </vscode-text-field>
-      <vscode-tag style="vertical-align: middle;">-</vscode-tag>
+      <span style="color:var(--foreground);vertical-align:middle;">-</span>
       <vscode-text-field name="rangeh" readonly style="vertical-align: middle;">
       </vscode-text-field>
     </div>

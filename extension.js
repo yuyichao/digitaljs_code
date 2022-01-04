@@ -623,7 +623,7 @@ class DigitalJS {
             const error = e.error;
             const yosys_stderr = e.yosys_stderr;
             if (error === undefined && yosys_stderr === undefined) {
-                console.log(error);
+                console.log(e);
                 return vscode.window.showErrorMessage(`Unknown yosys2digitaljs error.`);
             }
             return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);

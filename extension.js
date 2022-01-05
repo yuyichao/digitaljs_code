@@ -271,13 +271,12 @@ class FilesMgr {
 }
 
 class SourceInfo {
-    constructor(uri, mtime, sha512) {
+    constructor(uri, sha512) {
         this.uri = uri;
-        this.mtime = mtime;
         this.sha512 = sha512;
     }
     toWorkspace() {
-        return { uri: this.uri.toString(), mtime: this.mtime, sha512: this.sha512 };
+        return { uri: this.uri.toString(), sha512: this.sha512 };
     }
     toCircuit(circuit_dir) {
         // Remove time stamps and convert file paths to relative path.
@@ -297,14 +296,15 @@ class SourceInfo {
         return res;
     }
     static fromWorkspace(data) {
-        return new SourceInfo(vscode.Uri.parse(data.uri), data.mtime, data.sha512);
+        if (!data.uri || !data.sha512)
+            return;
+        return new SourceInfo(vscode.Uri.parse(data.uri), data.sha512);
     }
     static fromCircuit(circuit_uri, json) {
-        const relpath = json.relpath;
-        if (!relpath)
+        if (!json.relpath || !json.sha512)
             return;
-        return new SourceInfo(vscode.Uri.joinPath(circuit_uri, '..', relpath),
-                              undefined, json.sha512);
+        return new SourceInfo(vscode.Uri.joinPath(circuit_uri, '..', json.relpath),
+                              json.sha512);
     }
     static loadMapWorkspace(storage) {
         if (!storage)
@@ -585,19 +585,14 @@ class DigitalJS {
             const uri = info.uri;
             const uri_str = uri.toString();
             const doc = docs[uri_str];
-            if (doc && doc.isDirty) {
-                const res = await vscode.window.showInformationMessage(
-                    `File ${key} has unsaved changes. Save before synthesis?`, 'Yes', 'No');
-                if (!res)
-                    return;
-                if (res == 'Yes') {
-                    await doc.save();
-                }
+            let content;
+            if (doc) {
+                content = doc.getText();
             }
-            const stat = await vscode.workspace.fs.stat(uri);
-            info.mtime = stat.mtime;
-            const content = new TextDecoder().decode(
-                await vscode.workspace.fs.readFile(uri));
+            else {
+                content = new TextDecoder().decode(
+                    await vscode.workspace.fs.readFile(uri));
+            }
             info.sha512 = hash_sha512(content);
             data[key] = content;
         }

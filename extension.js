@@ -821,7 +821,17 @@ class DigitalJS {
         this.files.refresh();
     }
     async startScript(item) {
-        const script = new TextDecoder().decode(await vscode.workspace.fs.readFile(item.resourceUri));
+        const uri = item.resourceUri;
+        const uri_str = uri.toString();
+        let script;
+        for (const doc of vscode.workspace.textDocuments) {
+            if (doc.uri.toString() == uri_str) {
+                script = doc.getText();
+                continue;
+            }
+        }
+        if (script === undefined)
+            script = new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
         this.postPanelMessage({
             command: 'runlua',
             name: item.resourceUri.path,

@@ -157,10 +157,15 @@ class DigitalJS {
             const positions = cellView.model.get('source_positions');
             if (!positions)
                 return;
-            for (const pos of positions)
-                markers.push({name: pos.name,
-                              from_line: pos.from.line, from_col: pos.from.column,
-                              to_line: pos.to.line, to_col: pos.to.column});
+            for (const pos of positions) {
+                const marker = {name: pos.name,
+                                from_line: pos.from.line - 1, from_col: pos.from.column - 1,
+                                to_line: pos.to.line - 1, to_col: pos.to.column - 1};
+                if (marker.from_line < 0 || marker.to_line < 0 ||
+                    marker.from_col < 0 || marker.to_col < 0)
+                    continue;
+                markers.push(marker);
+            }
             if (markers.length) {
                 vscode.postMessage({ command: "showmarker", markers });
             }

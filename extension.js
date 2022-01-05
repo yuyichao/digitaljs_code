@@ -179,7 +179,6 @@ class FilesMgr {
     constructor(djs) {
         this.djs = djs;
         this.circuit = undefined;
-        this.source_map = {};
         this.sources = new Map();
         this.script_running = {};
         this.script_not_running = {};

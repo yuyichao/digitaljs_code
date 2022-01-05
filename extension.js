@@ -387,6 +387,13 @@ class DigitalJS {
         this._iopanelMessage = new vscode.EventEmitter();
         this.iopanelMessage = this._iopanelMessage.event;
 
+        this.highlightedEditors = [];
+        this.highlightDecoType = vscode.window.createTextEditorDecorationType({
+            backgroundColor: new vscode.ThemeColor('peekViewEditor.matchHighlightBackground'),
+            borderColor: new vscode.ThemeColor('peekViewEditor.matchHighlightBorder')
+        });
+        context.subscriptions.push(this.highlightDecoType);
+
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openView',
                                             () => this.openView()));
@@ -636,6 +643,7 @@ class DigitalJS {
         return data;
     }
     async doSynth() {
+        this.clearMarker();
         const source_map = this.createSourceMapForSynth();
         if (!source_map)
             return;
@@ -883,6 +891,40 @@ class DigitalJS {
             name: item.resourceUri.path
         });
     }
+    showMarker(markers) {
+        const editor_map = {};
+        const getEditorInfo = (name) => {
+            let edit_info = editor_map[name];
+            if (edit_info)
+                return edit_info;
+            const src_info = this.source_map[name];
+            if (!src_info)
+                return;
+            const editor = src_info.findEditor();
+            if (!editor)
+                return;
+            this.highlightedEditors.push(editor);
+            edit_info = { editor, markers: [] };
+            editor_map[name] = edit_info;
+            return edit_info;
+        };
+        for (const marker of markers) {
+            const edit_info = getEditorInfo(marker.name);
+            if (!edit_info)
+                continue;
+            edit_info.markers.push(new vscode.Range(marker.from_line, marker.from_col,
+                                                    marker.to_line, marker.to_col));
+        }
+        for (const name in editor_map) {
+            const edit_info = editor_map[name];
+            edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
+        }
+    }
+    clearMarker() {
+        for (const editor of this.highlightedEditors)
+            editor.setDecorations(this.highlightDecoType, []);
+        this.highlightedEditors.length = 0;
+    }
     postPanelMessage(msg) {
         if (!this.panel)
             return;
@@ -948,6 +990,10 @@ class DigitalJS {
                 vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
                 return;
             }
+            case 'showmarker':
+                return this.showMarker(message.markers);
+            case 'clearmarker':
+                return this.clearMarker();
         }
     }
     processIOPanelMessage(message) {
@@ -1053,6 +1099,7 @@ class DigitalJS {
             this.source_map = {};
             this.reverse_source_map = undefined;
             this.extra_data = {};
+            this.clearMarker();
             this.context.workspaceState.update('digitaljs.view',
                                                { column: undefined, visible: false });
         });

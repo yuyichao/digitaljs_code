@@ -274,6 +274,20 @@ class SourceInfo {
         this.uri = uri;
         this.sha512 = sha512;
     }
+    findEditor() {
+        const uri_str = this.uri.toString();
+        const editor = vscode.window.visibleTextEditors.find(
+            (e) => e.document.uri.toString() == uri_str);
+        if (!editor)
+            return;
+        const doc = editor.document;
+        // Check the content against the hash and cache the result.
+        // The `onDidChangeTextDocument` event handler will clear this
+        // when the document changes.
+        if (this.match === undefined)
+            this.match = this.sha512 == hash_sha512(doc.getText());
+        return this.match ? editor : undefined;
+    }
     toWorkspace() {
         return { uri: this.uri.toString(), sha512: this.sha512 };
     }
@@ -433,10 +447,32 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
 
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeTextDocument((e) => {
+                const reverse_source_map = this.getReverseSourceMap();
+                const uri_str = e.document.uri.toString();
+                const key = reverse_source_map[uri_str];
+                if (!key)
+                    return;
+                // Force a recompute of matching state next time.
+                delete this.source_map[key].match;
+        }));
+
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
         this.restore();
+    }
+    getReverseSourceMap() {
+        // Compute lazily
+        if (this.reverse_source_map)
+            return this.reverse_source_map;
+        const source_map = this.source_map
+        const reverse_source_map = {};
+        for (const key in source_map)
+            reverse_source_map[source_map[key].uri.toString()] = key;
+        this.reverse_source_map = reverse_source_map;
+        return reverse_source_map;
     }
     async restore() {
         if (!(await this.restoreView()))
@@ -480,6 +516,7 @@ class DigitalJS {
             this.circuit = circuit;
             this.source_map = SourceInfo.loadMapWorkspace(
                 this.context.workspaceState.get('digitaljs.source_map'));
+            this.reverse_source_map = undefined;
             return true;
         }
         return false;
@@ -503,6 +540,7 @@ class DigitalJS {
                 if (load_circuit) {
                     this.source_map = SourceInfo.loadMapCircuit(this.files.circuit,
                                                                 json.source_map);
+                    this.reverse_source_map = undefined;
                     this.context.workspaceState.update(
                         'digitaljs.source_map',
                         SourceInfo.storeMapWorkspace(this.source_map));
@@ -623,6 +661,7 @@ class DigitalJS {
             return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);
         }
         this.source_map = source_map;
+        this.reverse_source_map = undefined;
         this.circuit = res.output;
         this.dirty = true;
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
@@ -682,6 +721,7 @@ class DigitalJS {
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
         if ('source_map' in json) {
             this.source_map = SourceInfo.loadMapCircuit(uri, json.source_map);
+            this.reverse_source_map = undefined;
             delete json.source_map;
         }
         this.context.workspaceState.update('digitaljs.source_map',
@@ -1011,6 +1051,7 @@ class DigitalJS {
             this.dirty = false;
             this.circuit = { devices: {}, connectors: [], subcircuits: {} };
             this.source_map = {};
+            this.reverse_source_map = undefined;
             this.extra_data = {};
             this.context.workspaceState.update('digitaljs.view',
                                                { column: undefined, visible: false });

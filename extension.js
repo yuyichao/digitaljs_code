@@ -332,11 +332,11 @@ class SourceInfo {
         return res;
     }
     static loadMapCircuit(circuit, source_map_in) {
-        if (source_map_in)
+        if (!source_map_in)
             return {};
         const source_map_out = {};
         for (const key in source_map_in) {
-            const info = SourceInfo.fromCircuit(source_map_in[key]);
+            const info = SourceInfo.fromCircuit(circuit, source_map_in[key]);
             if (!info)
                 continue;
             source_map_out[key] = info;

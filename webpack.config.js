@@ -4,7 +4,6 @@
 
 const path = require("path");
 const webpack = require('webpack');
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 const outputDirectory = "dist";
 
@@ -21,12 +20,11 @@ function main_view_config(env, argv) {
             rules: [
                 {
                     test: /\.css$/,
-                    use: [devMode ? "style-loader" : MiniCssExtractPlugin.loader, "css-loader"]
+                    use: ["style-loader", "css-loader"]
                 },
                 {
                     test: /\.scss$/,
-                    use: [devMode ? "style-loader" : MiniCssExtractPlugin.loader, "css-loader",
-                          "sass-loader"]
+                    use: ["style-loader", "css-loader", "sass-loader"]
                 },
                 {
                     test: /\.(png|woff|woff2|eot|ttf|svg)$/,
@@ -46,8 +44,6 @@ function main_view_config(env, argv) {
                 [path.resolve(__dirname, './node_modules/digitaljs/src/engines/worker-worker.mjs')]: false
             }
         },
-        plugins: [
-        ].concat(devMode ? [] : [new MiniCssExtractPlugin()]),
     };
 }
 

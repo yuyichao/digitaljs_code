@@ -41,6 +41,11 @@ function main_view_config(env, argv) {
                 },
             ]
         },
+        resolve: {
+            alias: {
+                [path.resolve(__dirname, './node_modules/digitaljs/src/engines/worker-worker.mjs')]: false
+            }
+        },
         plugins: [
         ].concat(devMode ? [] : [new MiniCssExtractPlugin()]),
     };
@@ -65,6 +70,20 @@ function status_view_config(env, argv) {
                     }
                 },
             ]
+        },
+        plugins: [
+        ],
+    };
+}
+
+function synth_view_config(env, argv) {
+    const devMode = argv.mode !== "production";
+    return {
+        name: 'synth-view',
+        entry: "./view/synth_view.js",
+        output: {
+            path: path.join(__dirname, outputDirectory),
+            filename: "synth_view.js"
         },
         plugins: [
         ],
@@ -128,4 +147,31 @@ function web_ext_config(env, argv) {
     };
 }
 
-module.exports = [main_view_config, status_view_config, digitaljs_worker_config, web_ext_config];
+function local_ext_config(env, argv) {
+    const devMode = argv.mode !== "production";
+    return {
+        name: 'local-ext',
+        target: 'node',
+        entry: {
+            extension: "./extension.js",
+        },
+        output: {
+            path: path.join(__dirname, outputDirectory),
+            filename: "local-extension.js",
+            libraryTarget: 'commonjs',
+            devtoolModuleFilenameTemplate: '../../[resource-path]'
+        },
+        module: {
+            rules: [
+            ]
+        },
+        plugins: [
+        ],
+        externals: {
+            vscode: 'commonjs vscode' // ignored because it doesn't exist
+        },
+    };
+}
+
+module.exports = [main_view_config, status_view_config, synth_view_config,
+                  digitaljs_worker_config, web_ext_config, local_ext_config];

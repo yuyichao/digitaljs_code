@@ -361,10 +361,11 @@ class DigitalJS {
         const ext_uri = context.extensionUri;
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
         this.mainJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'view-bundle.js');
-        this.synthJSPath = vscode.Uri.joinPath(ext_uri, 'view', 'synth_view.js');
+        this.synthJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'synth_view.js');
         this.statusJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'status_view.js');
         this.uiToolkitPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
-                                                 "webview-ui-toolkit", "dist", "toolkit.js");
+                                                 "webview-ui-toolkit", "dist",
+                                                 "toolkit.min.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
         this.simWorker = this.readSimWorker(vscode.Uri.joinPath(ext_uri, 'dist',

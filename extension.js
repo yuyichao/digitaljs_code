@@ -172,6 +172,8 @@ class SourceFile extends vscode.TreeItem {
         this.id = uri.toString();
         this.resourceUri = uri;
         this.contextValue = uri.path;
+        this.command = { title: 'Open', command: 'vscode.open',
+                         arguments: [uri] };
     }
 }
 

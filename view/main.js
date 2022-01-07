@@ -32,14 +32,79 @@ function circuit_empty(circuit) {
     return true;
 }
 
+class LuaRunner {
+    constructor(djs) {
+        this.djs = djs;
+        this.runners = {};
+    }
+
+    _error(name, e) {
+        vscode.postMessage({ command: "luaerror", name, message: e.luaMessage });
+    }
+    _getRunner(name) {
+        let runner = this.runners[name];
+        if (runner)
+            return runner;
+        runner = new digitaljs_lua.LuaRunner(this.djs.circuit);
+        runner.on('thread:stop', (pid) => {
+            vscode.postMessage({ command: "luastop", name });
+        });
+        runner.on('thread:error', (pid, e) => {
+            this._error(name, e);
+        });
+        runner.on('print', msgs => {
+            vscode.postMessage({ command: "luaprint", name, messages: msgs });
+        });
+        this.runners[name] = runner;
+        return runner;
+    }
+    run(name, script) {
+        this.stop(name);
+        const runner = this._getRunner(name);
+        let pid;
+        try {
+            pid = runner.runThread(script);
+            runner.running_pid = pid;
+        }
+        catch (e) {
+            if (e instanceof digitaljs_lua.LuaError) {
+                this._error(name, e);
+            }
+            else {
+                throw e;
+            }
+        }
+        if (pid !== undefined) {
+            vscode.postMessage({ command: "luastarted", name });
+        }
+    }
+    stop(name) {
+        const helper = this.runners[name];
+        if (!helper)
+            return;
+        const pid = helper.running_pid;
+        if (pid === undefined)
+            return;
+        if (helper.isThreadRunning(pid)) {
+            helper.stopThread(pid);
+            delete helper.running_pid;
+        }
+    }
+    shutdown() {
+        for (const h of Object.values(this.runners))
+            h.shutdown();
+        this.runners = {};
+    }
+}
+
 class DigitalJS {
     constructor() {
-        this.helpers = {};
         this.circuit = undefined;
         this.monitor = undefined;
         this.monitormem = undefined;
         this.monitorview = undefined;
         this.paper = undefined;
+        this.lua = new LuaRunner(this);
         window.addEventListener('message', event => {
             this.processMessage(event.data);
         });
@@ -90,64 +155,11 @@ class DigitalJS {
                 this.fastForwardSim();
                 return;
             case 'runlua':
-                this.runLua(message.name, message.script);
+                this.lua.run(message.name, message.script);
                 return;
             case 'stoplua':
-                this.stopLua(message.name);
+                this.lua.stopLua(message.name);
                 return;
-        }
-    }
-
-    luaError(name, e) {
-        vscode.postMessage({ command: "luaerror", name, message: e.luaMessage });
-    }
-    getLuaRunner(name) {
-        let runner = this.helpers[name];
-        if (runner)
-            return runner;
-        runner = new digitaljs_lua.LuaRunner(this.circuit);
-        runner.on('thread:stop', (pid) => {
-            vscode.postMessage({ command: "luastop", name });
-        });
-        runner.on('thread:error', (pid, e) => {
-            this.luaError(name, e);
-        });
-        runner.on('print', msgs => {
-            vscode.postMessage({ command: "luaprint", name, messages: msgs });
-        });
-        this.helpers[name] = runner;
-        return runner;
-    }
-    runLua(name, script) {
-        this.stopLua(name);
-        const runner = this.getLuaRunner(name);
-        let pid;
-        try {
-            pid = runner.runThread(script);
-            runner.running_pid = pid;
-        }
-        catch (e) {
-            if (e instanceof digitaljs_lua.LuaError) {
-                this.luaError(name, e);
-            }
-            else {
-                throw e;
-            }
-        }
-        if (pid !== undefined) {
-            vscode.postMessage({ command: "luastarted", name });
-        }
-    }
-    stopLua(name) {
-        const helper = this.helpers[name];
-        if (!helper)
-            return;
-        const pid = helper.running_pid;
-        if (pid === undefined)
-            return;
-        if (helper.isThreadRunning(pid)) {
-            helper.stopThread(pid);
-            delete helper.running_pid;
         }
     }
 
@@ -294,9 +306,7 @@ class DigitalJS {
             this.iopanel.shutdown();
             this.iopanel = undefined;
         }
-        for (const h of Object.values(this.helpers))
-            h.shutdown();
-        this.helpers = {};
+        this.lua.shutdown();
         this.updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
     }

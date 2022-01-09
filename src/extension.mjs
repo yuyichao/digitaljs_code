@@ -598,6 +598,9 @@ class DigitalJS {
             this.synth_options = json.options;
             delete json.options;
         }
+        else {
+            this.synth_options = { ...default_synth_options };
+        }
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         for (const fld of ['devices', 'connectors', 'subcircuits']) {
             const v = json[fld];

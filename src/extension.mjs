@@ -265,6 +265,8 @@ class DigitalJS {
 
         this._iopanelMessage = new vscode.EventEmitter();
         this.iopanelMessage = this._iopanelMessage.event;
+        this._circuitChanged = new vscode.EventEmitter();
+        this.circuitChanged = this._circuitChanged.event;
 
         this.highlightedEditors = [];
         this.highlightDecoType = vscode.window.createTextEditorDecorationType({
@@ -618,6 +620,7 @@ class DigitalJS {
                                            SourceInfo.storeMapWorkspace(this.source_map));
         this.extra_data = json;
         this.files.refresh();
+        this._circuitChanged.fire();
         this.showCircuit(false);
     }
     async saveJSONToFile() {

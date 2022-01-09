@@ -35,6 +35,9 @@ export class SynthProvider {
             queue.release();
             this.processCommand(msg, view.webview, context);
         });
+        this.#djs.circuitChanged(() => {
+            queue.post({ command: "update-options", options: this.#djs.synth_options });
+        });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>

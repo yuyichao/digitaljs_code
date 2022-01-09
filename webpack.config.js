@@ -51,7 +51,7 @@ function status_view_config(env, argv) {
     const devMode = argv.mode !== "production";
     return {
         name: 'status-view',
-        entry: "./view/status_view.js",
+        entry: "./view/status_view.mjs",
         output: {
             path: path.join(__dirname, outputDirectory),
             filename: "status_view.js"
@@ -76,7 +76,7 @@ function synth_view_config(env, argv) {
     const devMode = argv.mode !== "production";
     return {
         name: 'synth-view',
-        entry: "./view/synth_view.js",
+        entry: "./view/synth_view.mjs",
         output: {
             path: path.join(__dirname, outputDirectory),
             filename: "synth_view.js"
@@ -110,7 +110,7 @@ function web_ext_config(env, argv) {
         name: 'web-ext',
         target: 'webworker',
         entry: {
-            extension: "./extension.js",
+            extension: "./extension.mjs",
         },
         output: {
             path: path.join(__dirname, outputDirectory),
@@ -134,7 +134,7 @@ function web_ext_config(env, argv) {
         },
         plugins: [
             new webpack.ProvidePlugin({
-                process: 'process/browser' // provide a shim for the global `process` variable
+                process: 'process/browser.js' // provide a shim for the global `process` variable
             })
         ],
         externals: {
@@ -149,7 +149,7 @@ function local_ext_config(env, argv) {
         name: 'local-ext',
         target: 'node',
         entry: {
-            extension: "./extension.js",
+            extension: "./extension.mjs",
         },
         output: {
             path: path.join(__dirname, outputDirectory),

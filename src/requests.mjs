@@ -3,9 +3,10 @@
 'use strict';
 
 const vscode = require('vscode');
+let yosys2digitaljs;
 
 if (process.browser) {
-    module.exports.yosys2digitaljs = async function (req_body) {
+    yosys2digitaljs = async function (req_body) {
         const server = vscode.workspace.getConfiguration('digitaljs').get('serverURL');
         req_body = JSON.stringify(req_body);
         const response = await fetch(server + "/api/yosys2digitaljs", {
@@ -35,7 +36,7 @@ if (process.browser) {
 else {
     const https = require('https');
 
-    module.exports.yosys2digitaljs = function (req_body) {
+    yosys2digitaljs = function (req_body) {
         const server = vscode.workspace.getConfiguration('digitaljs').get('serverURL');
         req_body = JSON.stringify(req_body);
         return new Promise((resolve, reject) => {
@@ -84,3 +85,4 @@ else {
         });
     }
 }
+export { yosys2digitaljs };

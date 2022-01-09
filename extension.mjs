@@ -2,20 +2,20 @@
 
 'use strict';
 
-const vscode = require('vscode');
-const path = require('path');
-const requests = require('./src/requests.js');
-const crypto = require('crypto');
+import * as vscode from 'vscode';
+import * as path from 'path';
+import { yosys2digitaljs } from './src/requests.mjs';
+import { createHash } from 'crypto';
 
 function hash_sha512(data) {
-    return crypto.createHash('sha512').update(data).digest('hex');
+    return createHash('sha512').update(data).digest('hex');
 }
 
-function activate(context) {
+export function activate(context) {
     new DigitalJS(context);
 }
 
-function deactivate() {
+export function deactivate() {
 }
 
 class SynthProvider {
@@ -651,7 +651,7 @@ class DigitalJS {
         };
         let res;
         try {
-            res = await requests.yosys2digitaljs({ files: data, options: opts });
+            res = await yosys2digitaljs({ files: data, options: opts });
         }
         catch (e) {
             const error = e.error;
@@ -1161,9 +1161,4 @@ class DigitalJS {
 </body>
 </html>`;
     }
-}
-
-module.exports = {
-    activate,
-    deactivate
 }

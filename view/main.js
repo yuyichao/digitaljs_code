@@ -210,7 +210,7 @@ class DigitalJS {
         }
         this.monitorview = new MonitorView({ model: this.monitor, el: $('#monitor') });
         this.iopanel = new RemoteIOPanel({
-            model: this.circuit, el: $(''), djs: this, vscode: vscode
+            model: this.circuit, el: $(''), vscode: vscode
         });
         this.paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
         this.registerMarkers(this.paper);

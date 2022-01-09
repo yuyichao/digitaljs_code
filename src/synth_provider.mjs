@@ -9,7 +9,7 @@ export class SynthProvider {
     constructor(djs) {
         this.#djs = djs;
     }
-    processCommand(message, view, context) {
+    #processCommand(message, view, context) {
         switch (message.command) {
             case 'do-synth':
                 this.#djs.doSynth();
@@ -33,7 +33,7 @@ export class SynthProvider {
             // we don't really care what message it is but if we've got a message
             // then the initialization has finished...
             queue.release();
-            this.processCommand(msg, view.webview, context);
+            this.#processCommand(msg, view.webview, context);
         });
         this.#djs.circuitChanged(() => {
             queue.post({ command: "update-options", options: this.#djs.synth_options });

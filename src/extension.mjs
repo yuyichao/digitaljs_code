@@ -54,14 +54,15 @@ class SourceFile extends vscode.TreeItem {
 }
 
 class FilesMgr {
+    #onDidChangeTreeData
     constructor(djs) {
         this.djs = djs;
         this.circuit = undefined;
         this.sources = new Map();
         this.script_running = {};
         this.script_not_running = {};
-        this._onDidChangeTreeData = new vscode.EventEmitter();
-        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this.#onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this.#onDidChangeTreeData.event;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
     }
@@ -82,7 +83,7 @@ class FilesMgr {
         this.djs.context.workspaceState.update('digitaljs.files', state);
         this.djs.context.workspaceState.update('digitaljs.synth_options',
                                                this.djs.synth_options);
-        this._onDidChangeTreeData.fire();
+        this.#onDidChangeTreeData.fire();
     }
     addSource(uri) {
         if (this.sources.has(uri.path))
@@ -114,7 +115,7 @@ class FilesMgr {
                                        Array.from(Object.keys(this.script_not_running)));
         // The view item doesn't seem to be watching for the context change
         // to redraw the icons so we need to refresh it after updating the running state.
-        this._onDidChangeTreeData.fire();
+        this.#onDidChangeTreeData.fire();
     }
     scriptStopped(file) {
         delete this.script_running[file];
@@ -123,7 +124,7 @@ class FilesMgr {
                                        Array.from(Object.keys(this.script_running)));
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
                                        Array.from(Object.keys(this.script_not_running)));
-        this._onDidChangeTreeData.fire();
+        this.#onDidChangeTreeData.fire();
     }
     toJSON() {
         let res = [];
@@ -233,6 +234,9 @@ const default_synth_options = {
 
 
 class DigitalJS {
+    #tickUpdated
+    #iopanelMessage
+    #circuitChanged
     constructor(context) {
         this.context = context;
         this.panel = undefined;
@@ -258,15 +262,15 @@ class DigitalJS {
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.source_map = {};
         this.tick = 0;
-        this._tickUpdated = new vscode.EventEmitter();
-        this.tickUpdated = this._tickUpdated.event;
+        this.#tickUpdated = new vscode.EventEmitter();
+        this.tickUpdated = this.#tickUpdated.event;
         this.extra_data = {};
         this.synth_options = { ...default_synth_options };
 
-        this._iopanelMessage = new vscode.EventEmitter();
-        this.iopanelMessage = this._iopanelMessage.event;
-        this._circuitChanged = new vscode.EventEmitter();
-        this.circuitChanged = this._circuitChanged.event;
+        this.#iopanelMessage = new vscode.EventEmitter();
+        this.iopanelMessage = this.#iopanelMessage.event;
+        this.#circuitChanged = new vscode.EventEmitter();
+        this.circuitChanged = this.#circuitChanged.event;
 
         this.highlightedEditors = [];
         this.highlightDecoType = vscode.window.createTextEditorDecorationType({
@@ -444,7 +448,7 @@ class DigitalJS {
     }
     setTick(tick) {
         this.tick = tick;
-        this._tickUpdated.fire(tick);
+        this.#tickUpdated.fire(tick);
     }
     async readSimWorker(file) {
         return new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
@@ -620,7 +624,7 @@ class DigitalJS {
                                            SourceInfo.storeMapWorkspace(this.source_map));
         this.extra_data = json;
         this.files.refresh();
-        this._circuitChanged.fire();
+        this.#circuitChanged.fire();
         this.showCircuit(false);
     }
     async saveJSONToFile() {
@@ -885,7 +889,7 @@ class DigitalJS {
                 }
             }
         }
-        this._iopanelMessage.fire(message);
+        this.#iopanelMessage.fire(message);
     }
     iopanelUpdateValue(id, value) {
         this.postPanelMessage({ command: 'iopanel:update', id, value });

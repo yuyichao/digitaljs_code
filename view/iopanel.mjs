@@ -7,7 +7,6 @@ import { Vector3vl } from '3vl';
 
 export class RemoteIOPanel extends Backbone.View {
     initialize(args) {
-        this.djs = args.djs;
         this.vscode = args.vscode;
         this.render();
         this.listenTo(this.model._graph, 'add', () => { this.render() });

@@ -2,6 +2,8 @@
 
 'use strict';
 
+import { WebviewMsgQueue } from './webview_msg_queue.mjs';
+
 export class SynthProvider {
     #djs
     constructor(djs) {
@@ -26,8 +28,13 @@ export class SynthProvider {
         view.webview.options = {
             enableScripts: true
         };
-        view.webview.onDidReceiveMessage((msg) => this.processCommand(msg, view.webview,
-                                                                      context));
+        const queue = new WebviewMsgQueue(view.webview);
+        view.webview.onDidReceiveMessage((msg) => {
+            // we don't really care what message it is but if we've got a message
+            // then the initialization has finished...
+            queue.release();
+            this.processCommand(msg, view.webview, context);
+        });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>

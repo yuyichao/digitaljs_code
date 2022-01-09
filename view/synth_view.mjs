@@ -11,8 +11,6 @@ function notifyOption() {
     vscode.postMessage({ command: "update-options", options });
 }
 
-notifyOption();
-
 function main() {
     for (const opt of ['opt', 'transform', /* 'lint', */ 'fsmexpand']) {
         const ele = document.getElementById(opt);
@@ -34,5 +32,8 @@ function main() {
     synth.addEventListener("click", () => {
         vscode.postMessage({ command: "do-synth" });
     });
+
+    vscode.postMessage({ command: 'initialized' });
+    notifyOption();
 }
 window.addEventListener("load", main);

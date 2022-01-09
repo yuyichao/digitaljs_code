@@ -3,25 +3,26 @@
 'use strict';
 
 export class SynthProvider {
+    #djs
     constructor(djs) {
-        this.djs = djs;
+        this.#djs = djs;
     }
     processCommand(message, view, context) {
         switch (message.command) {
             case 'do-synth':
-                this.djs.doSynth();
+                this.#djs.doSynth();
                 return;
             case 'update-options':
-                this.djs.synth_options = { ...message.options };
-                this.djs.context.workspaceState.update('digitaljs.synth_options',
-                                                       this.djs.synth_options);
+                this.#djs.synth_options = { ...message.options };
+                this.#djs.context.workspaceState.update('digitaljs.synth_options',
+                                                        this.#djs.synth_options);
                 return;
         }
     }
     resolveWebviewView(view, context, _token) {
-        const ui_uri = this.djs.getUri(view.webview, this.djs.uiToolkitPath);
-        const synth_uri = this.djs.getUri(view.webview, this.djs.synthJSPath);
-        const icon_uri = this.djs.getUri(view.webview, this.djs.codIconsPath);
+        const ui_uri = this.#djs.getUri(view.webview, this.#djs.uiToolkitPath);
+        const synth_uri = this.#djs.getUri(view.webview, this.#djs.synthJSPath);
+        const icon_uri = this.#djs.getUri(view.webview, this.#djs.codIconsPath);
         view.webview.options = {
             enableScripts: true
         };
@@ -32,7 +33,7 @@ export class SynthProvider {
 <head>
   <meta charset="UTF-8">
   <script>
-    window.init_options = ${JSON.stringify(this.djs.synth_options)};
+    window.init_options = ${JSON.stringify(this.#djs.synth_options)};
   </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${synth_uri}"></script>

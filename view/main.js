@@ -10,7 +10,7 @@ import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
 
-const vscode = window.acquireVsCodeApi();
+const vscode = acquireVsCodeApi();
 
 function circuit_empty(circuit) {
     if (!circuit)

@@ -5,7 +5,7 @@
 import $ from 'jquery';
 import { Vector3vl, Display3vlWithRegex, Display3vl } from '3vl';
 
-const vscode = window.acquireVsCodeApi();
+const vscode = acquireVsCodeApi();
 
 const controlCodes20 = [
     'NUL', 'SOH', 'STX', 'ETX', 'EOT', 'ENQ', 'ACK', 'BEL',

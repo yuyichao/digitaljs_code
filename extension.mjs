@@ -67,7 +67,6 @@ class StatusProvider {
 <head>
   <meta charset="UTF-8">
   <script>
-    window.acquireVsCodeApi = acquireVsCodeApi;
     window.init_view = ${JSON.stringify(this.djs.iopanelViews)};
   </script>
   <script type="module" src="${ui_uri}"></script>
@@ -1072,7 +1071,6 @@ class DigitalJS {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
-    window.acquireVsCodeApi = acquireVsCodeApi;
     window.simWorkerUri = URL.createObjectURL(new Blob([${JSON.stringify(worker_script)}], {type: 'test/javascript'}));
   </script>
   <script type="module" src="${js_uri}"></script>

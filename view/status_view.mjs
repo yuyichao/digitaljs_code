@@ -61,47 +61,51 @@ class Display3vlASCII extends Display3vlWithRegex {
 }
 
 class Status {
+    #dp3vl
+    #widgets
+    #clock
+    #iopanel
     constructor() {
-        window.addEventListener('message', event => this.processMessage(event));
-        window.addEventListener("load", () => this.initialize());
-        this.dp3vl = new Display3vl();
-        this.dp3vl.addDisplay(new Display3vlASCII());
-        this.widgets = {};
+        window.addEventListener('message', event => this.#processMessage(event));
+        window.addEventListener("load", () => this.#initialize());
+        this.#dp3vl = new Display3vl();
+        this.#dp3vl.addDisplay(new Display3vlASCII());
+        this.#widgets = {};
     }
-    initialize() {
-        this.clock = $('#clock');
-        this.iopanel = $('#iopanel');
+    #initialize() {
+        this.#clock = $('#clock');
+        this.#iopanel = $('#iopanel');
         // Release the messages from the main extension
         vscode.postMessage({ command: 'initialized' });
-        this.updateWidgets(window.init_view);
+        this.#updateWidgets(window.init_view);
     }
-    updateWidgets(views) {
-        const old_widgets = this.widgets;
-        this.widgets = {};
+    #updateWidgets(views) {
+        const old_widgets = this.#widgets;
+        this.#widgets = {};
         for (const key in old_widgets)
             old_widgets[key].widget.detach();
         for (const view of views) {
             const old_w = old_widgets[view.id];
             if (old_w && old_w.dir == view.dir && old_w.bits == view.bits) {
                 old_w.updater(view.value);
-                this.iopanel.append(old_w.widget);
-                this.widgets[view.id] = old_w;
+                this.#iopanel.append(old_w.widget);
+                this.#widgets[view.id] = old_w;
                 continue;
             }
-            const w = this.newWidget(view);
-            this.iopanel.append(w.widget);
-            this.widgets[view.id] = w;
+            const w = this.#newWidget(view);
+            this.#iopanel.append(w.widget);
+            this.#widgets[view.id] = w;
         }
     }
-    newWidget(view) {
+    #newWidget(view) {
         const is_input = view.dir == 'input';
-        const w = view.bits == 1 ? this.newBitWidget(view, is_input) :
-                  this.newNumberWidget(view, is_input);
+        const w = view.bits == 1 ? this.#newBitWidget(view, is_input) :
+                  this.#newNumberWidget(view, is_input);
         w.dir = view.dir;
         w.bits = view.bits;
         return w;
     }
-    newBitWidget(view, is_input) {
+    #newBitWidget(view, is_input) {
         const id = view.id;
         const widget = $(`<tr>
   <td>
@@ -129,7 +133,7 @@ class Status {
         }
         return { widget, updater };
     }
-    newNumberWidget(view, is_input) {
+    #newNumberWidget(view, is_input) {
         const id = view.id;
         const widget = $(`<tr>
   <td>
@@ -157,17 +161,17 @@ class Status {
             bin = new_bin;
             // Note that even if the value didn't change, the display value might.
             const value = Vector3vl.fromBin(bin, bits);
-            input.val(this.dp3vl.show(base, value));
+            input.val(this.#dp3vl.show(base, value));
         };
         const base_updater = (new_base) => {
             if (base === new_base)
                 return;
             base = new_base;
-            const sz = this.dp3vl.size(base, bits);
+            const sz = this.#dp3vl.size(base, bits);
             input.prop('size', sz);
             if (is_input)
                 input.prop('maxlength', sz)
-                     .prop('pattern', this.dp3vl.pattern(base));
+                     .prop('pattern', this.#dp3vl.pattern(base));
             updater(bin);
         };
         base_updater('hex');
@@ -176,9 +180,9 @@ class Status {
         });
         if (is_input) {
             input.change((e) => {
-                if (!this.dp3vl.validate(base, e.target.value, bits))
+                if (!this.#dp3vl.validate(base, e.target.value, bits))
                     return;
-                const value = this.dp3vl.read(base, e.target.value, bits);
+                const value = this.#dp3vl.read(base, e.target.value, bits);
                 const new_bin = value.toBin(value);
                 if (new_bin == bin)
                     return;
@@ -188,17 +192,17 @@ class Status {
         }
         return { widget, updater };
     }
-    async processMessage(event) {
+    async #processMessage(event) {
         const message = event.data;
         switch (message.command) {
             case 'tick':
-                this.clock.val(message.tick);
+                this.#clock.val(message.tick);
                 return;
             case 'iopanel:view':
-                this.updateWidgets(message.view);
+                this.#updateWidgets(message.view);
                 return;
             case 'iopanel:update': {
-                const w = this.widgets[message.id];
+                const w = this.#widgets[message.id];
                 if (w)
                     w.updater(message.value);
                 return;

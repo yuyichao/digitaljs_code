@@ -636,7 +636,7 @@ class DigitalJS {
             return true;
         const res = await vscode.window.showErrorMessage(`Save current circuit?`,
                                                          'Yes', 'No', 'Cancel');
-        if (!res)
+        if (!res || res == 'Cancel')
             return false;
         if (res == 'Yes')
             await this.saveJSON();

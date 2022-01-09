@@ -192,7 +192,7 @@ class Status {
         }
         return { widget, updater };
     }
-    async #processMessage(event) {
+    #processMessage(event) {
         const message = event.data;
         switch (message.command) {
             case 'tick':

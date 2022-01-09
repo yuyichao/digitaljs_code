@@ -4,36 +4,43 @@
 
 const vscode = acquireVsCodeApi();
 
-let options = vscode.getState() || window.init_options;
-
-function notifyOption() {
-    vscode.setState(options);
-    vscode.postMessage({ command: "update-options", options });
-}
-
-function main() {
-    for (const opt of ['opt', 'transform', /* 'lint', */ 'fsmexpand']) {
-        const ele = document.getElementById(opt);
-        ele.checked = options[opt];
-        ele.addEventListener('change', () => {
-            options[opt] = ele.checked;
-            notifyOption();
+class Synth {
+    #options
+    constructor(options) {
+        this.#options = options;
+        window.addEventListener("load", () => {
+            this.#initialize();
         });
     }
+    #notifyOption() {
+        vscode.setState(this.#options);
+        vscode.postMessage({ command: "update-options", options: this.#options });
+    }
+    #initialize() {
+        for (const opt of ['opt', 'transform', /* 'lint', */ 'fsmexpand']) {
+            const ele = document.getElementById(opt);
+            ele.checked = this.#options[opt];
+            ele.addEventListener('change', () => {
+                this.#options[opt] = ele.checked;
+                this.#notifyOption();
+            });
+        }
 
-    const fsm = document.getElementById("fsm");
-    fsm.value = options.fsm;
-    fsm.addEventListener('change', () => {
-        options.fsm = fsm.value;
-        notifyOption();
-    });
+        const fsm = document.getElementById("fsm");
+        fsm.value = this.#options.fsm;
+        fsm.addEventListener('change', () => {
+            this.#options.fsm = fsm.value;
+            this.#notifyOption();
+        });
 
-    const synth = document.getElementById("do-synth");
-    synth.addEventListener("click", () => {
-        vscode.postMessage({ command: "do-synth" });
-    });
+        const synth = document.getElementById("do-synth");
+        synth.addEventListener("click", () => {
+            vscode.postMessage({ command: "do-synth" });
+        });
 
-    vscode.postMessage({ command: 'initialized' });
-    notifyOption();
+        vscode.postMessage({ command: 'initialized' });
+        this.#notifyOption();
+    }
 }
-window.addEventListener("load", main);
+
+new Synth(vscode.getState() || window.init_options);

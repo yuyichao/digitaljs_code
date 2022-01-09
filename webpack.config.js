@@ -110,7 +110,7 @@ function web_ext_config(env, argv) {
         name: 'web-ext',
         target: 'webworker',
         entry: {
-            extension: "./extension.mjs",
+            extension: "./src/extension.mjs",
         },
         output: {
             path: path.join(__dirname, outputDirectory),
@@ -149,7 +149,7 @@ function local_ext_config(env, argv) {
         name: 'local-ext',
         target: 'node',
         entry: {
-            extension: "./extension.mjs",
+            extension: "./src/extension.mjs",
         },
         output: {
             path: path.join(__dirname, outputDirectory),

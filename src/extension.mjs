@@ -4,8 +4,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { yosys2digitaljs } from './src/requests.mjs';
-import { SynthProvider } from './src/synth_provider.mjs';
+import { yosys2digitaljs } from './requests.mjs';
+import { SynthProvider } from './synth_provider.mjs';
 import { createHash } from 'crypto';
 
 function hash_sha512(data) {

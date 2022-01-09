@@ -7,6 +7,7 @@ import * as path from 'path';
 import { yosys2digitaljs } from './requests.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
+import { WebviewMsgQueue } from './webview_msg_queue.mjs';
 import { createHash } from 'crypto';
 
 function hash_sha512(data) {
@@ -806,22 +807,10 @@ class DigitalJS {
     postPanelMessage(msg) {
         if (!this.panel)
             return;
-        if (!this.panel_initialized) {
-            this.panel_pending_messages.push(msg);
-        }
-        else {
-            this.panel.webview.postMessage(msg);
-        }
+        this.panel._djs_queue.post(msg);
     }
     processCommand(message) {
-        // we don't really care what message it is but if we've got a message
-        // then the initialization has finished...
-        if (!this.panel_initialized) {
-            for (const msg of this.panel_pending_messages)
-                this.panel.webview.postMessage(msg);
-            this.panel_pending_messages.length = 0;
-            this.panel_initialized = true;
-        }
+        this.panel._djs_queue.release();
         if (message.command.startsWith('iopanel:')) {
             this.processIOPanelMessage(message);
             return;
@@ -960,8 +949,7 @@ class DigitalJS {
                 retainContextWhenHidden: true
             }
         );
-        this.panel_initialized = false;
-        this.panel_pending_messages = [];
+        this.panel._djs_queue = new WebviewMsgQueue(this.panel.webview);
         this.context.workspaceState.update('digitaljs.view',
                                            { column: this.panel.viewColumn, visible: true });
         this.panel.iconPath = this.iconPath;

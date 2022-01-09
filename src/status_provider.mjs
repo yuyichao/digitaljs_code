@@ -2,6 +2,8 @@
 
 'use strict';
 
+import { WebviewMsgQueue } from './webview_msg_queue.mjs';
+
 export class StatusProvider {
     constructor(djs) {
         this.djs = djs;
@@ -13,37 +15,22 @@ export class StatusProvider {
         view.webview.options = {
             enableScripts: true
         };
-        let initialized = false;
-        // Preserving the order of the messages.
-        const pending_messages = [];
+        const queue = new WebviewMsgQueue(view.webview);
         view.webview.onDidReceiveMessage((msg) => {
             // we don't really care what message it is but if we've got a message
             // then the initialization has finished...
-            if (!initialized) {
-                for (const msg of pending_messages)
-                    view.webview.postMessage(msg);
-                pending_messages.length = 0;
-                initialized = true;
-            }
+            queue.release();
             switch (msg.command) {
                 case 'iopanel:update':
                     this.djs.iopanelUpdateValue(msg.id, msg.value);
                     return;
             }
         });
-        const postMessage = (msg) => {
-            if (!initialized) {
-                pending_messages.push(msg);
-            }
-            else {
-                view.webview.postMessage(msg);
-            }
-        };
         this.djs.tickUpdated(async (tick) => {
-            postMessage({ command: 'tick', tick });
+            queue.post({ command: 'tick', tick });
         });
         this.djs.iopanelMessage(async (message) => {
-            postMessage(message);
+            queue.post(message);
         });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">

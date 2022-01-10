@@ -15,9 +15,7 @@ export class SynthProvider {
                 this.#djs.doSynth();
                 return;
             case 'update-options':
-                this.#djs.synth_options = { ...message.options };
-                this.#djs.context.workspaceState.update('digitaljs.synth_options',
-                                                        this.#djs.synth_options);
+                this.#djs.updateOptions(message.options);
                 return;
         }
     }

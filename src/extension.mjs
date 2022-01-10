@@ -473,6 +473,10 @@ class DigitalJS {
         this.showCircuit(transform);
         this.#circuitView.reveal();
     }
+    updateOptions(options) {
+        this.synth_options = { ...options };
+        this.context.workspaceState.update('digitaljs.synth_options', this.synth_options);
+    }
     pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
     }

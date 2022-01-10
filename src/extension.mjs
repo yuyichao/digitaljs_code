@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { yosys2digitaljs } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
-import { FilesMgr } from './files_mgr.mjs';
+import { FilesMgr, FilesView } from './files_mgr.mjs';
 import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
@@ -144,7 +144,7 @@ class DigitalJS {
                                                       { webviewOptions: {
                                                           retainContextWhenHidden: true }}));
         context.subscriptions.push(
-            vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.files));
+            vscode.window.registerTreeDataProvider('digitaljs-proj-files', new FilesView(this)));
 
         context.subscriptions.push(
             vscode.workspace.onDidChangeTextDocument((e) => {

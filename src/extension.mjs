@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { yosys2digitaljs } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
+import { FilesMgr } from './files_mgr.mjs';
 import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
@@ -25,133 +26,6 @@ export function activate(context) {
 }
 
 export function deactivate() {
-}
-
-class CircuitFile extends vscode.TreeItem {
-    constructor(uri) {
-        let name = 'Unnamed circuit';
-        if (uri)
-            name = path.basename(uri.path);
-        super(name, vscode.TreeItemCollapsibleState.Expanded);
-        this.iconPath = new vscode.ThemeIcon('circuit-board');
-        this.id = 'root-circuit';
-        this.contextValue = 'root-circuit';
-        this.resourceUri = uri;
-    }
-}
-
-class SourceFile extends vscode.TreeItem {
-    constructor(circuit, uri) {
-        let name;
-        if (circuit) {
-            name = path.relative(path.dirname(circuit.path), uri.path);
-        }
-        else {
-            name = path.basename(uri.path);
-        }
-        super(name, vscode.TreeItemCollapsibleState.None);
-        this.iconPath = new vscode.ThemeIcon('file');
-        this.id = uri.toString();
-        this.resourceUri = uri;
-        this.contextValue = uri.path;
-        this.command = { title: 'Open', command: 'vscode.open',
-                         arguments: [uri] };
-    }
-}
-
-class FilesMgr {
-    #onDidChangeTreeData
-    constructor(djs) {
-        this.djs = djs;
-        this.circuit = undefined;
-        this.sources = new Map();
-        this.script_running = {};
-        this.script_not_running = {};
-        this.#onDidChangeTreeData = new vscode.EventEmitter();
-        this.onDidChangeTreeData = this.#onDidChangeTreeData.event;
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
-    }
-    reset(circuit) {
-        this.circuit = circuit;
-        this.sources.clear();
-        this.script_running = {};
-        this.script_not_running = {};
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
-    }
-    refresh() {
-        const state = { sources_uri: [] };
-        if (this.circuit)
-            state.circuit_uri = this.circuit.toString();
-        for (let file of this.sources.values())
-            state.sources_uri.push(file.toString());
-        this.djs.context.workspaceState.update('digitaljs.files', state);
-        this.djs.context.workspaceState.update('digitaljs.synth_options',
-                                               this.djs.synth_options);
-        this.#onDidChangeTreeData.fire();
-    }
-    addSource(uri) {
-        if (this.sources.has(uri.path))
-            return;
-        this.sources.set(uri.path, uri);
-        if (path.extname(uri.path) == '.lua') {
-            this.script_not_running[uri.path] = true;
-            vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                           Array.from(Object.keys(this.script_not_running)));
-        }
-    }
-    deleteSource(uri) {
-        this.sources.delete(uri.path);
-        if (path.extname(uri.path) == '.lua') {
-            delete this.script_not_running[uri.path];
-            delete this.script_running[uri.path];
-            vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                           Array.from(Object.keys(this.script_running)));
-            vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                           Array.from(Object.keys(this.script_not_running)));
-        }
-    }
-    scriptStarted(file) {
-        delete this.script_not_running[file];
-        this.script_running[file] = true;
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                       Array.from(Object.keys(this.script_running)));
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                       Array.from(Object.keys(this.script_not_running)));
-        // The view item doesn't seem to be watching for the context change
-        // to redraw the icons so we need to refresh it after updating the running state.
-        this.#onDidChangeTreeData.fire();
-    }
-    scriptStopped(file) {
-        delete this.script_running[file];
-        this.script_not_running[file] = true;
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                       Array.from(Object.keys(this.script_running)));
-        vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                       Array.from(Object.keys(this.script_not_running)));
-        this.#onDidChangeTreeData.fire();
-    }
-    toJSON() {
-        let res = [];
-        const circuit_path = path.dirname(this.circuit.path);
-        for (let file of this.sources.values())
-            res.push(path.relative(circuit_path, file.path));
-        return res;
-    }
-
-    getTreeItem(element) {
-        return element;
-    }
-    async getChildren(element) {
-        if (!element)
-            return [new CircuitFile(this.circuit)];
-        console.assert(element instanceof CircuitFile);
-        let res = [];
-        for (let file of this.sources.values())
-            res.push(new SourceFile(this.circuit, file));
-        return res;
-    }
 }
 
 const default_synth_options = {
@@ -190,7 +64,7 @@ class DigitalJS {
         this.iopanelViews = [];
         this.iopanelViewIndices = {};
 
-        this.files = new FilesMgr(this);
+        this.files = new FilesMgr();
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
         this.#source_map = new SourceMap();
@@ -323,6 +197,7 @@ class DigitalJS {
             }
         }
         this.files.refresh();
+        this.#saveFilesStates();
     }
     async restoreCircuit() {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
@@ -363,6 +238,16 @@ class DigitalJS {
             delete json.options;
             this.extra_data = json;
         }
+    }
+    #saveFilesStates() {
+        const state = { sources_uri: [] };
+        const files = this.files;
+        if (files.circuit)
+            state.circuit_uri = files.circuit.toString();
+        for (let file of files.sources.values())
+            state.sources_uri.push(file.toString());
+        this.context.workspaceState.update('digitaljs.files', state);
+        this.context.workspaceState.update('digitaljs.synth_options', this.synth_options);
     }
     setTick(tick) {
         this.tick = tick;
@@ -539,6 +424,7 @@ class DigitalJS {
                                            this.#source_map.storeMapWorkspace());
         this.extra_data = json;
         this.files.refresh();
+        this.#saveFilesStates();
         this.#circuitChanged.fire();
         this.showCircuit(false);
     }
@@ -633,6 +519,7 @@ class DigitalJS {
         for (const file of files)
             this.files.addSource(file);
         this.files.refresh();
+        this.#saveFilesStates();
         this.dirty = true;
         this.context.workspaceState.update('digitaljs.dirty', true);
     }
@@ -666,10 +553,12 @@ class DigitalJS {
             return vscode.window.showErrorMessage(`Saving as ${file} failed: ${e}`);
         }
         this.files.refresh();
+        this.#saveFilesStates();
     }
     removeSource(item) {
         this.files.deleteSource(item.resourceUri);
         this.files.refresh();
+        this.#saveFilesStates();
     }
     async startScript(item) {
         const uri = item.resourceUri;
@@ -815,6 +704,7 @@ class DigitalJS {
         await this.createOrShowView(true);
         this.files.addSource(uri);
         this.files.refresh();
+        this.#saveFilesStates();
         this.dirty = true;
     }
     async openView() {
@@ -842,6 +732,7 @@ class DigitalJS {
                 return;
             this.files.addSource(uri);
             this.files.refresh();
+            this.#saveFilesStates();
             this.dirty = true;
             return;
         }

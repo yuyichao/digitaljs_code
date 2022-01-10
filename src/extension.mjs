@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { yosys2digitaljs } from './requests.mjs';
+import { CircuitView } from './circuit_view.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
@@ -241,9 +242,9 @@ class DigitalJS {
     #tickUpdated
     #iopanelMessage
     #circuitChanged
+    #circuitView
     constructor(context) {
         this.context = context;
-        this.panel = undefined;
 
         // Paths
         const ext_uri = context.extensionUri;
@@ -561,7 +562,7 @@ class DigitalJS {
                                            SourceInfo.storeMapWorkspace(source_map));
         this.context.workspaceState.update('digitaljs.dirty', true);
         this.showCircuit(transform);
-        this.panel.reveal();
+        this.#circuitView.reveal();
     }
     pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
@@ -814,12 +815,11 @@ class DigitalJS {
         this.highlightedEditors.length = 0;
     }
     postPanelMessage(msg) {
-        if (!this.panel)
+        if (!this.#circuitView)
             return;
-        this.panel._djs_queue.post(msg);
+        this.#circuitView.post(msg);
     }
     processCommand(message) {
-        this.panel._djs_queue.release();
         if (message.command.startsWith('iopanel:')) {
             this.processIOPanelMessage(message);
             return;
@@ -934,37 +934,23 @@ class DigitalJS {
     async createOrShowView(focus, column) {
         const active = vscode.window.activeTextEditor;
         column = column || (active ? active.viewColumn : undefined);
-        if (this.panel) {
+        if (this.#circuitView) {
             if (focus)
-                this.panel.reveal(column);
+                this.#circuitView.reveal(column);
             return;
         }
+        column = column || vscode.ViewColumn.One;
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
-        this.panel = vscode.window.createWebviewPanel(
-            'digitaljs-mainview',
-            'DigitalJS',
-            {
-                // The view is still brought to the front
-                // even with preserveFocus set to true...
-                preserveFocus: !focus,
-                viewColumn: column || vscode.ViewColumn.One
-            },
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true
-            }
-        );
-        this.panel._djs_queue = new WebviewMsgQueue(this.panel.webview);
+        this.#circuitView = new CircuitView(this, focus, column);
         this.context.workspaceState.update('digitaljs.view',
-                                           { column: this.panel.viewColumn, visible: true });
-        this.panel.iconPath = this.iconPath;
-        this.panel.onDidDispose(() => {
+                                           { column: column, visible: true });
+        this.#circuitView.onDidDispose(() => {
             // TODO: would be nice if we can try to save here
             // and maybe confirm if the user actually wants to close?
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
-            this.panel = undefined;
+            this.#circuitView = undefined;
             this.files.reset();
             this.dirty = false;
             this.circuit = { devices: {}, connectors: [], subcircuits: {} };
@@ -975,67 +961,18 @@ class DigitalJS {
             this.context.workspaceState.update('digitaljs.view',
                                                { column: undefined, visible: false });
         });
-        this.panel.onDidChangeViewState((e) => {
+        this.#circuitView.onDidChangeViewState((e) => {
+            const panel = e.webviewPanel;
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus',
-                                           this.panel.active);
-            if (this.panel.visible)
+                                           panel.active);
+            if (panel.visible)
                 vscode.commands.executeCommand('digitaljs-proj-files.focus');
             this.context.workspaceState.update('digitaljs.view',
-                                               { column: this.panel.viewColumn,
-                                                 visible: this.panel.visible });
+                                               { column: panel.viewColumn,
+                                                 visible: panel.visible });
         });
-        this.panel.webview.html = await this.getViewContent(this.panel.webview);
-        this.panel.webview.onDidReceiveMessage((msg) => this.processCommand(msg));
         if (focus) {
             vscode.commands.executeCommand('digitaljs-proj-files.focus');
         }
-    }
-    async getViewContent(webview) {
-        const js_uri = webview.asWebviewUri(this.mainJSPath);
-        const ui_uri = webview.asWebviewUri(this.uiToolkitPath);
-        const icon_uri = webview.asWebviewUri(this.codIconsPath);
-        const worker_script = await this.simWorker;
-        return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>
-    window.simWorkerUri = URL.createObjectURL(new Blob([${JSON.stringify(worker_script)}], {type: 'test/javascript'}));
-  </script>
-  <script type="module" src="${js_uri}"></script>
-  <script type="module" src="${ui_uri}"></script>
-  <link href="${icon_uri}" rel="stylesheet"/>
-  <title>DigitalJS Code</title>
-</head>
-<body>
-<div id="grid">
-  <div id="paper"></div>
-  <div id="gutter_vert" class="gutter gutter-vertical"></div>
-  <div id="monitorbox">
-    <div>
-      <vscode-button name="ppt_up" title="Increase pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
-      <vscode-button name="ppt_down" title="Decrease pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
-      <span style="color:var(--foreground);vertical-align:middle;">scale</span>
-      <vscode-text-field name="scale" readonly style="vertical-align: middle;">
-      </vscode-text-field>
-      <vscode-button name="live" title="Pause plot" disabled style="vertical-align: middle;"><i class="codicon codicon-debug-pause"></i></vscode-button>
-      <vscode-button name="left" title="Move left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
-      <vscode-button name="right" title="Move right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
-    </div>
-    <div>
-      <span style="color:var(--foreground);vertical-align:middle;">range</span>
-      <vscode-text-field name="rangel" readonly style="vertical-align: middle;">
-      </vscode-text-field>
-      <span style="color:var(--foreground);vertical-align:middle;">-</span>
-      <vscode-text-field name="rangeh" readonly style="vertical-align: middle;">
-      </vscode-text-field>
-    </div>
-    <div id="monitor">
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
     }
 }

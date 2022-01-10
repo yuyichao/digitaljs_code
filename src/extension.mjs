@@ -14,6 +14,10 @@ function hash_sha512(data) {
     return createHash('sha512').update(data).digest('hex');
 }
 
+async function readTextFile(uri) {
+    return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+}
+
 export function activate(context) {
     new DigitalJS(context);
 }
@@ -240,6 +244,8 @@ class DigitalJS {
     constructor(context) {
         this.context = context;
         this.panel = undefined;
+
+        // Paths
         const ext_uri = context.extensionUri;
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
         this.mainJSPath = vscode.Uri.joinPath(ext_uri, 'dist', 'view-bundle.js');
@@ -250,8 +256,8 @@ class DigitalJS {
                                                  "toolkit.min.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
-        this.simWorker = this.readSimWorker(vscode.Uri.joinPath(ext_uri, 'dist',
-                                                                'digitaljs-sym-worker.js'));
+        this.simWorker = readTextFile(vscode.Uri.joinPath(ext_uri, 'dist',
+                                                          'digitaljs-sym-worker.js'));
 
         this.updateCircuitWaits = [];
         this.iopanelViews = [];
@@ -450,12 +456,6 @@ class DigitalJS {
         this.tick = tick;
         this.#tickUpdated.fire(tick);
     }
-    async readSimWorker(file) {
-        return new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
-    }
-    getUri(webview, uri) {
-        return webview.asWebviewUri(uri);
-    }
     showCircuit(transform, pause) {
         this.setTick(0);
         this.postPanelMessage({
@@ -519,8 +519,7 @@ class DigitalJS {
                 content = doc.getText();
             }
             else {
-                content = new TextDecoder().decode(
-                    await vscode.workspace.fs.readFile(uri));
+                content = await readTextFile(uri);
             }
             info.sha512 = hash_sha512(content);
             data[key] = content;
@@ -660,7 +659,7 @@ class DigitalJS {
     async readJSONFile(file) {
         let str;
         try {
-            str = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+            str = await readTextFile(file);
         }
         catch (e) {
             await vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
@@ -767,7 +766,7 @@ class DigitalJS {
             }
         }
         if (script === undefined)
-            script = new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+            script = await readTextFile(uri);
         this.postPanelMessage({
             command: 'runlua',
             name: item.resourceUri.path,
@@ -891,9 +890,6 @@ class DigitalJS {
         }
         this.#iopanelMessage.fire(message);
     }
-    iopanelUpdateValue(id, value) {
-        this.postPanelMessage({ command: 'iopanel:update', id, value });
-    }
     async openViewJSON(uri) {
         await this.createOrShowView(true);
         if (!(await this.confirmUnsavedJSON()))
@@ -995,9 +991,9 @@ class DigitalJS {
         }
     }
     async getViewContent(webview) {
-        const js_uri = this.getUri(webview, this.mainJSPath);
-        const ui_uri = this.getUri(webview, this.uiToolkitPath);
-        const icon_uri = this.getUri(webview, this.codIconsPath);
+        const js_uri = webview.asWebviewUri(this.mainJSPath);
+        const ui_uri = webview.asWebviewUri(this.uiToolkitPath);
+        const icon_uri = webview.asWebviewUri(this.codIconsPath);
         const worker_script = await this.simWorker;
         return `<!DOCTYPE html>
 <html lang="en">

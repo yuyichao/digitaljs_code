@@ -22,9 +22,9 @@ export class SynthProvider {
         }
     }
     resolveWebviewView(view, context, _token) {
-        const ui_uri = this.#djs.getUri(view.webview, this.#djs.uiToolkitPath);
-        const synth_uri = this.#djs.getUri(view.webview, this.#djs.synthJSPath);
-        const icon_uri = this.#djs.getUri(view.webview, this.#djs.codIconsPath);
+        const ui_uri = view.webview.asWebviewUri(this.#djs.uiToolkitPath);
+        const synth_uri = view.webview.asWebviewUri(this.#djs.synthJSPath);
+        const icon_uri = view.webview.asWebviewUri(this.#djs.codIconsPath);
         view.webview.options = {
             enableScripts: true
         };

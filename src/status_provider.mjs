@@ -10,9 +10,9 @@ export class StatusProvider {
         this.#djs = djs;
     }
     resolveWebviewView(view, context, _token) {
-        const ui_uri = this.#djs.getUri(view.webview, this.#djs.uiToolkitPath);
-        const status_uri = this.#djs.getUri(view.webview, this.#djs.statusJSPath);
-        const icon_uri = this.#djs.getUri(view.webview, this.#djs.codIconsPath);
+        const ui_uri = view.webview.asWebviewUri(this.#djs.uiToolkitPath);
+        const status_uri = view.webview.asWebviewUri(this.#djs.statusJSPath);
+        const icon_uri = view.webview.asWebviewUri(this.#djs.codIconsPath);
         view.webview.options = {
             enableScripts: true
         };
@@ -23,7 +23,8 @@ export class StatusProvider {
             queue.release();
             switch (msg.command) {
                 case 'iopanel:update':
-                    this.#djs.iopanelUpdateValue(msg.id, msg.value);
+                    this.#djs.postPanelMessage({ command: 'iopanel:update',
+                                                 id: msg.id, value: msg.value });
                     return;
             }
         });

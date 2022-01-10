@@ -39,11 +39,13 @@ class SourceFile extends vscode.TreeItem {
 
 export class FilesMgr {
     #onDidChangeTreeData
+    #script_running
+    #script_not_running
     constructor() {
         this.circuit = undefined;
         this.sources = new Map();
-        this.script_running = {};
-        this.script_not_running = {};
+        this.#script_running = {};
+        this.#script_not_running = {};
         this.#onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.#onDidChangeTreeData.event;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
@@ -52,8 +54,8 @@ export class FilesMgr {
     reset(circuit) {
         this.circuit = circuit;
         this.sources.clear();
-        this.script_running = {};
-        this.script_not_running = {};
+        this.#script_running = {};
+        this.#script_not_running = {};
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
     }
@@ -65,40 +67,40 @@ export class FilesMgr {
             return;
         this.sources.set(uri.path, uri);
         if (path.extname(uri.path) == '.lua') {
-            this.script_not_running[uri.path] = true;
+            this.#script_not_running[uri.path] = true;
             vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                           Array.from(Object.keys(this.script_not_running)));
+                                           Array.from(Object.keys(this.#script_not_running)));
         }
     }
     deleteSource(uri) {
         this.sources.delete(uri.path);
         if (path.extname(uri.path) == '.lua') {
-            delete this.script_not_running[uri.path];
-            delete this.script_running[uri.path];
+            delete this.#script_not_running[uri.path];
+            delete this.#script_running[uri.path];
             vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                           Array.from(Object.keys(this.script_running)));
+                                           Array.from(Object.keys(this.#script_running)));
             vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                           Array.from(Object.keys(this.script_not_running)));
+                                           Array.from(Object.keys(this.#script_not_running)));
         }
     }
     scriptStarted(file) {
-        delete this.script_not_running[file];
-        this.script_running[file] = true;
+        delete this.#script_not_running[file];
+        this.#script_running[file] = true;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                       Array.from(Object.keys(this.script_running)));
+                                       Array.from(Object.keys(this.#script_running)));
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                       Array.from(Object.keys(this.script_not_running)));
+                                       Array.from(Object.keys(this.#script_not_running)));
         // The view item doesn't seem to be watching for the context change
         // to redraw the icons so we need to refresh it after updating the running state.
         this.#onDidChangeTreeData.fire();
     }
     scriptStopped(file) {
-        delete this.script_running[file];
-        this.script_not_running[file] = true;
+        delete this.#script_running[file];
+        this.#script_not_running[file] = true;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                       Array.from(Object.keys(this.script_running)));
+                                       Array.from(Object.keys(this.#script_running)));
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                       Array.from(Object.keys(this.script_not_running)));
+                                       Array.from(Object.keys(this.#script_not_running)));
         this.#onDidChangeTreeData.fire();
     }
     toJSON() {

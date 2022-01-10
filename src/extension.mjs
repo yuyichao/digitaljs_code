@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { yosys2digitaljs } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
+import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
@@ -153,82 +154,6 @@ class FilesMgr {
     }
 }
 
-class SourceInfo {
-    constructor(uri, sha512) {
-        this.uri = uri;
-        this.sha512 = sha512;
-    }
-    findEditor() {
-        const uri_str = this.uri.toString();
-        const editor = vscode.window.visibleTextEditors.find(
-            (e) => e.document.uri.toString() == uri_str);
-        if (!editor)
-            return;
-        const doc = editor.document;
-        // Check the content against the hash and cache the result.
-        // The `onDidChangeTextDocument` event handler will clear this
-        // when the document changes.
-        if (this.match === undefined)
-            this.match = this.sha512 == hash_sha512(doc.getText());
-        return this.match ? editor : undefined;
-    }
-    toWorkspace() {
-        return { uri: this.uri.toString(), sha512: this.sha512 };
-    }
-    toCircuit(circuit_dir) {
-        // Remove time stamps and convert file paths to relative path.
-        return { relpath: path.relative(circuit_dir, this.uri.path), sha512: this.sha512 };
-    }
-    static storeMapWorkspace(source_map) {
-        const res = {};
-        for (const key in source_map)
-            res[key] = source_map[key].toWorkspace();
-        return res;
-    }
-    static storeMapCircuit(circuit, source_map) {
-        const circuit_dir = path.dirname(circuit.path);
-        const res = {};
-        for (const key in source_map)
-            res[key] = source_map[key].toCircuit(circuit_dir);
-        return res;
-    }
-    static fromWorkspace(data) {
-        if (!data.uri || !data.sha512)
-            return;
-        return new SourceInfo(vscode.Uri.parse(data.uri), data.sha512);
-    }
-    static fromCircuit(circuit_uri, json) {
-        if (!json.relpath || !json.sha512)
-            return;
-        return new SourceInfo(vscode.Uri.joinPath(circuit_uri, '..', json.relpath),
-                              json.sha512);
-    }
-    static loadMapWorkspace(storage) {
-        if (!storage)
-            return {};
-        const res = {};
-        for (const key in storage) {
-            const info = SourceInfo.fromWorkspace(storage[key]);
-            if (!info)
-                continue;
-            res[key] = info;
-        }
-        return res;
-    }
-    static loadMapCircuit(circuit, source_map_in) {
-        if (!source_map_in)
-            return {};
-        const source_map_out = {};
-        for (const key in source_map_in) {
-            const info = SourceInfo.fromCircuit(circuit, source_map_in[key]);
-            if (!info)
-                continue;
-            source_map_out[key] = info;
-        }
-        return source_map_out;
-    }
-}
-
 const default_synth_options = {
     opt: false,
     transform: true,
@@ -243,6 +168,7 @@ class DigitalJS {
     #iopanelMessage
     #circuitChanged
     #circuitView
+    #source_map
     constructor(context) {
         this.context = context;
 
@@ -267,7 +193,7 @@ class DigitalJS {
         this.files = new FilesMgr(this);
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
-        this.source_map = {};
+        this.#source_map = new SourceMap();
         this.tick = 0;
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
@@ -348,30 +274,19 @@ class DigitalJS {
 
         context.subscriptions.push(
             vscode.workspace.onDidChangeTextDocument((e) => {
-                const reverse_source_map = this.getReverseSourceMap();
+                const reverse_source_map = this.#source_map.reverseMap();
                 const uri_str = e.document.uri.toString();
                 const key = reverse_source_map[uri_str];
                 if (!key)
                     return;
                 // Force a recompute of matching state next time.
-                delete this.source_map[key].match;
+                delete this.#source_map.find(key).match;
         }));
 
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
         this.restore();
-    }
-    getReverseSourceMap() {
-        // Compute lazily
-        if (this.reverse_source_map)
-            return this.reverse_source_map;
-        const source_map = this.source_map
-        const reverse_source_map = {};
-        for (const key in source_map)
-            reverse_source_map[source_map[key].uri.toString()] = key;
-        this.reverse_source_map = reverse_source_map;
-        return reverse_source_map;
     }
     async restore() {
         if (!(await this.restoreView()))
@@ -413,9 +328,8 @@ class DigitalJS {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
         if (circuit) {
             this.circuit = circuit;
-            this.source_map = SourceInfo.loadMapWorkspace(
+            this.#source_map.loadMapWorkspace(
                 this.context.workspaceState.get('digitaljs.source_map'));
-            this.reverse_source_map = undefined;
             return true;
         }
         return false;
@@ -437,12 +351,9 @@ class DigitalJS {
             }
             if (json.source_map) {
                 if (load_circuit) {
-                    this.source_map = SourceInfo.loadMapCircuit(this.files.circuit,
-                                                                json.source_map);
-                    this.reverse_source_map = undefined;
+                    this.#source_map.loadMapCircuit(this.files.circuit, json.source_map);
                     this.context.workspaceState.update(
-                        'digitaljs.source_map',
-                        SourceInfo.storeMapWorkspace(this.source_map));
+                        'digitaljs.source_map', this.#source_map.storeMapWorkspace());
                 }
                 delete json.source_map;
             }
@@ -484,12 +395,12 @@ class DigitalJS {
             vscode.window.showErrorMessage(`No source file added for synthesis.`);
             return;
         }
-        const source_map = {};
+        const source_map = new SourceMap();
         const circuit_file = this.files.circuit;
         for (const basename in basenames_map) {
             const files = basenames_map[basename];
             if (files.length == 1) {
-                source_map[basename] = new SourceInfo(files[0]);
+                source_map.newEntry(basename, files[0]);
                 continue;
             }
             for (const file of files) {
@@ -500,7 +411,7 @@ class DigitalJS {
                 else {
                     name = file.path;
                 }
-                source_map[name] = new SourceInfo(file);
+                source_map.newEntry(name, file);
             }
         }
         return source_map;
@@ -510,8 +421,7 @@ class DigitalJS {
         const docs = {};
         for (const doc of vscode.workspace.textDocuments)
             docs[doc.uri.toString()] = doc;
-        for (const key in source_map) {
-            const info = source_map[key];
+        for (const [key, info] of source_map.entries()) {
             const uri = info.uri;
             const uri_str = uri.toString();
             const doc = docs[uri_str];
@@ -553,13 +463,12 @@ class DigitalJS {
             }
             return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);
         }
-        this.source_map = source_map;
-        this.reverse_source_map = undefined;
+        this.#source_map = source_map;
         this.circuit = res.output;
         this.dirty = true;
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
         this.context.workspaceState.update('digitaljs.source_map',
-                                           SourceInfo.storeMapWorkspace(source_map));
+                                           source_map.storeMapWorkspace());
         this.context.workspaceState.update('digitaljs.dirty', true);
         this.showCircuit(transform);
         this.#circuitView.reveal();
@@ -583,7 +492,7 @@ class DigitalJS {
         return {
             files: this.files.toJSON(),
             options: this.synth_options,
-            source_map: SourceInfo.storeMapCircuit(this.files.circuit, this.source_map),
+            source_map: this.#source_map.storeMapCircuit(this.files.circuit),
             ...this.circuit,
             ...this.extra_data
         };
@@ -616,12 +525,14 @@ class DigitalJS {
         }
         this.context.workspaceState.update('digitaljs.circuit', this.circuit);
         if ('source_map' in json) {
-            this.source_map = SourceInfo.loadMapCircuit(uri, json.source_map);
-            this.reverse_source_map = undefined;
+            this.#source_map.loadMapCircuit(uri, json.source_map);
             delete json.source_map;
         }
+        else {
+            this.#source_map.clear();
+        }
         this.context.workspaceState.update('digitaljs.source_map',
-                                           SourceInfo.storeMapWorkspace(this.source_map));
+                                           this.#source_map.storeMapWorkspace());
         this.extra_data = json;
         this.files.refresh();
         this.#circuitChanged.fire();
@@ -786,7 +697,7 @@ class DigitalJS {
             let edit_info = editor_map[name];
             if (edit_info)
                 return edit_info;
-            const src_info = this.source_map[name];
+            const src_info = this.#source_map.find(name);
             if (!src_info)
                 return;
             const editor = src_info.findEditor();
@@ -954,8 +865,7 @@ class DigitalJS {
             this.files.reset();
             this.dirty = false;
             this.circuit = { devices: {}, connectors: [], subcircuits: {} };
-            this.source_map = {};
-            this.reverse_source_map = undefined;
+            this.#source_map.clear();
             this.extra_data = {};
             this.clearMarker();
             this.context.workspaceState.update('digitaljs.view',

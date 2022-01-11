@@ -33,34 +33,36 @@ function circuit_empty(circuit) {
 }
 
 class LuaRunner {
+    #djs
+    #runners
     constructor(djs) {
-        this.djs = djs;
-        this.runners = {};
+        this.#djs = djs;
+        this.#runners = {};
     }
 
-    _error(name, e) {
+    #error(name, e) {
         vscode.postMessage({ command: "luaerror", name, message: e.luaMessage });
     }
-    _getRunner(name) {
-        let runner = this.runners[name];
+    #getRunner(name) {
+        let runner = this.#runners[name];
         if (runner)
             return runner;
-        runner = new digitaljs_lua.LuaRunner(this.djs.circuit);
+        runner = new digitaljs_lua.LuaRunner(this.#djs.circuit);
         runner.on('thread:stop', (pid) => {
             vscode.postMessage({ command: "luastop", name });
         });
         runner.on('thread:error', (pid, e) => {
-            this._error(name, e);
+            this.#error(name, e);
         });
         runner.on('print', msgs => {
             vscode.postMessage({ command: "luaprint", name, messages: msgs });
         });
-        this.runners[name] = runner;
+        this.#runners[name] = runner;
         return runner;
     }
     run(name, script) {
         this.stop(name);
-        const runner = this._getRunner(name);
+        const runner = this.#getRunner(name);
         let pid;
         try {
             pid = runner.runThread(script);
@@ -68,7 +70,7 @@ class LuaRunner {
         }
         catch (e) {
             if (e instanceof digitaljs_lua.LuaError) {
-                this._error(name, e);
+                this.#error(name, e);
             }
             else {
                 throw e;
@@ -79,7 +81,7 @@ class LuaRunner {
         }
     }
     stop(name) {
-        const helper = this.runners[name];
+        const helper = this.#runners[name];
         if (!helper)
             return;
         const pid = helper.running_pid;
@@ -91,50 +93,52 @@ class LuaRunner {
         }
     }
     shutdown() {
-        for (const h of Object.values(this.runners))
+        for (const h of Object.values(this.#runners))
             h.shutdown();
-        this.runners = {};
+        this.#runners = {};
     }
 }
 
 class DigitalJS {
     #circuit_dirty = false;
+    #iopanel
+    #monitor
+    #monitormem
+    #monitorview
+    #paper
+    #lua
     constructor() {
         this.circuit = undefined;
-        this.monitor = undefined;
-        this.monitormem = undefined;
-        this.monitorview = undefined;
-        this.paper = undefined;
-        this.lua = new LuaRunner(this);
+        this.#lua = new LuaRunner(this);
         window.addEventListener('message', event => {
-            this.processMessage(event.data);
+            this.#processMessage(event.data);
         });
-        $(window).on('load', () => this.initialize());
+        $(window).on('load', () => this.#initialize());
     }
 
-    initialize() {
+    #initialize() {
         Split({
             rowGutters: [{
                 element: document.querySelector('#gutter_vert'),
                 track: 1
             }]
         });
-        this.updateRunStates();
+        this.#updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
         // Release the messages from the main extension
         // (though the run state update should've already realeased it...)
         vscode.postMessage({ command: 'initialized' });
     }
 
-    async processMessage(message) {
+    async #processMessage(message) {
         if (message.command.startsWith('iopanel:')) {
-            if (this.iopanel)
-                this.iopanel.processMessage(message);
+            if (this.#iopanel)
+                this.#iopanel.processMessage(message);
             return;
         }
         switch (message.command) {
             case 'showcircuit':
-                this.mkCircuit(message.circuit, message.opts);
+                this.#mkCircuit(message.circuit, message.opts);
                 return;
             case 'savecircuit':
                 this.#circuit_dirty = false;
@@ -142,25 +146,25 @@ class DigitalJS {
                                      circuit: this.circuit.toJSON() });
                 return;
             case 'pausesim':
-                this.pauseSim();
+                this.#pauseSim();
                 return;
             case 'startsim':
-                this.startSim();
+                this.#startSim();
                 return;
             case 'singlestepsim':
-                this.singleStepSim();
+                this.#singleStepSim();
                 return;
             case 'nexteventsim':
-                this.nextEventSim();
+                this.#nextEventSim();
                 return;
             case 'fastforwardsim':
-                this.fastForwardSim();
+                this.#fastForwardSim();
                 return;
             case 'runlua':
-                this.lua.run(message.name, message.script);
+                this.#lua.run(message.name, message.script);
                 return;
             case 'stoplua':
-                this.lua.stopLua(message.name);
+                this.#lua.stopLua(message.name);
                 return;
         }
     }
@@ -171,7 +175,7 @@ class DigitalJS {
         }
     }
 
-    registerMarkers(paper) {
+    #registerMarkers(paper) {
         paper.on('cell:mouseover', (cellView) => {
             let markers = [];
             const positions = cellView.model.get('source_positions');
@@ -194,10 +198,10 @@ class DigitalJS {
             vscode.postMessage({ command: "clearmarker" });
         });
     }
-    mkCircuit(data, opts) {
+    #mkCircuit(data, opts) {
         if (opts.transform)
             data = digitaljs.transform.transformCircuit(data);
-        this.destroyCircuit();
+        this.#destroyCircuit();
         if (circuit_empty(data))
             return;
         if (opts.transform)
@@ -225,25 +229,25 @@ class DigitalJS {
         });
         if (!opts.pause)
             this.circuit.start();
-        this.monitor = new digitaljs.Monitor(this.circuit);
-        if (this.monitormem) {
-            this.monitor.loadWiresDesc(this.monitormem);
-            this.monitormem = undefined;
+        this.#monitor = new digitaljs.Monitor(this.circuit);
+        if (this.#monitormem) {
+            this.#monitor.loadWiresDesc(this.#monitormem);
+            this.#monitormem = undefined;
         }
-        this.monitorview = new MonitorView({ model: this.monitor, el: $('#monitor') });
-        this.iopanel = new RemoteIOPanel({
+        this.#monitorview = new MonitorView({ model: this.#monitor, el: $('#monitor') });
+        this.#iopanel = new RemoteIOPanel({
             model: this.circuit, el: $(''), vscode: vscode
         });
-        this.paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
-        this.registerMarkers(this.paper);
-        this.circuit.on('new:paper', (paper) => { this.registerMarkers(paper); });
+        this.#paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
+        this.#registerMarkers(this.#paper);
+        this.circuit.on('new:paper', (paper) => { this.#registerMarkers(paper); });
         this.circuit.on('userChange', () => {
-            this.updateRunStates();
+            this.#updateRunStates();
         });
         this.circuit.on('changeRunning', () => {
-            this.updateRunStates();
+            this.#updateRunStates();
         });
-        this.updateRunStates();
+        this.#updateRunStates();
         const live_btn = $('#monitorbox vscode-button[name=live]');
         const live_btn_icon = live_btn.find('i.codicon');
         const set_live = (live) => {
@@ -252,24 +256,24 @@ class DigitalJS {
             live_btn.prop('title', live ? 'Pause plot' : 'Live plot');
         };
         $('#monitorbox vscode-button').prop('disabled', false);
-        $('#monitorbox vscode-button[name=ppt_up]').on('click', (e) => { this.monitorview.pixelsPerTick *= 2; });
-        $('#monitorbox vscode-button[name=ppt_down]').on('click', (e) => { this.monitorview.pixelsPerTick /= 2; });
+        $('#monitorbox vscode-button[name=ppt_up]').on('click', (e) => { this.#monitorview.pixelsPerTick *= 2; });
+        $('#monitorbox vscode-button[name=ppt_down]').on('click', (e) => { this.#monitorview.pixelsPerTick /= 2; });
         $('#monitorbox vscode-button[name=left]').on('click', (e) => {
-            this.monitorview.live = false;
-            this.monitorview.start -= this.monitorview.width / this.monitorview.pixelsPerTick / 4;
+            this.#monitorview.live = false;
+            this.#monitorview.start -= this.#monitorview.width / this.#monitorview.pixelsPerTick / 4;
         });
         $('#monitorbox vscode-button[name=right]').on('click', (e) => {
-            this.monitorview.live = false;
-            this.monitorview.start += this.monitorview.width / this.monitorview.pixelsPerTick / 4;
+            this.#monitorview.live = false;
+            this.#monitorview.start += this.#monitorview.width / this.#monitorview.pixelsPerTick / 4;
         });
-        set_live(this.monitorview.live);
+        set_live(this.#monitorview.live);
         live_btn.on('click', (e) => {
-            this.monitorview.live = !this.monitorview.live;
-                if (this.monitorview.live)
-                    this.monitorview.start = this.circuit.tick - this.monitorview.width / this.monitorview.pixelsPerTick;
+            this.#monitorview.live = !this.#monitorview.live;
+                if (this.#monitorview.live)
+                    this.#monitorview.start = this.circuit.tick - this.#monitorview.width / this.#monitorview.pixelsPerTick;
             });
-        this.monitorview.on('change:live', set_live);
-        this.monitor.on('add', () => {
+        this.#monitorview.on('change:live', set_live);
+        this.#monitor.on('add', () => {
             if ($('#monitorbox').height() == 0)
                 $('html > body > div').css('grid-template-rows', (idx, old) => {
                     const z = old.split(' ');
@@ -279,19 +283,19 @@ class DigitalJS {
                 });
         });
         const show_range = () => {
-            $('#monitorbox vscode-text-field[name=rangel]').val(Math.round(this.monitorview.start));
-            $('#monitorbox vscode-text-field[name=rangeh]').val(Math.round(this.monitorview.start + this.monitorview.width / this.monitorview.pixelsPerTick));
+            $('#monitorbox vscode-text-field[name=rangel]').val(Math.round(this.#monitorview.start));
+            $('#monitorbox vscode-text-field[name=rangeh]').val(Math.round(this.#monitorview.start + this.#monitorview.width / this.#monitorview.pixelsPerTick));
         };
         const show_scale = () => {
-            $('#monitorbox vscode-text-field[name=scale]').val(this.monitorview.gridStep);
+            $('#monitorbox vscode-text-field[name=scale]').val(this.#monitorview.gridStep);
         };
         show_range();
         show_scale();
-        this.monitorview.on('change:start', show_range);
-        this.monitorview.on('change:pixelsPerTick', show_scale);
+        this.#monitorview.on('change:start', show_range);
+        this.#monitorview.on('change:pixelsPerTick', show_scale);
     }
 
-    updateRunStates() {
+    #updateRunStates() {
         const circuit = this.circuit;
         if (circuit === undefined) {
             vscode.postMessage({ command: "runstate", hascircuit: false,
@@ -301,54 +305,54 @@ class DigitalJS {
         vscode.postMessage({ command: "runstate", hascircuit: true,
                              running: circuit.running,
                              pendingEvents: circuit.hasPendingEvents });
-        this.monitorview.autoredraw = !circuit.running;
+        this.#monitorview.autoredraw = !circuit.running;
     }
-    destroyCircuit() {
-        if (this.monitor) {
+    #destroyCircuit() {
+        if (this.#monitor) {
             // remember which signals were monitored
-            this.monitormem = this.monitor.getWiresDesc();
+            this.#monitormem = this.#monitor.getWiresDesc();
         }
         if (this.circuit) {
             this.circuit.shutdown();
             this.circuit = undefined;
         }
-        if (this.paper) {
-            this.paper.remove();
-            this.paper = undefined;
+        if (this.#paper) {
+            this.#paper.remove();
+            this.#paper = undefined;
         }
-        if (this.monitorview) {
-            this.monitorview.shutdown();
-            this.monitorview = undefined;
+        if (this.#monitorview) {
+            this.#monitorview.shutdown();
+            this.#monitorview = undefined;
         }
-        if (this.monitor) {
-            this.monitor.stopListening();
-            this.monitor = undefined;
+        if (this.#monitor) {
+            this.#monitor.stopListening();
+            this.#monitor = undefined;
         }
-        if (this.iopanel) {
-            this.iopanel.shutdown();
-            this.iopanel = undefined;
+        if (this.#iopanel) {
+            this.#iopanel.shutdown();
+            this.#iopanel = undefined;
         }
-        this.lua.shutdown();
-        this.updateRunStates();
+        this.#lua.shutdown();
+        this.#updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
     }
-    pauseSim() {
+    #pauseSim() {
         this.circuit.stop();
     }
-    startSim() {
+    #startSim() {
         this.circuit.start();
     }
-    singleStepSim() {
+    #singleStepSim() {
         this.circuit.updateGates();
-        this.updateRunStates();
+        this.#updateRunStates();
     }
-    nextEventSim() {
+    #nextEventSim() {
         this.circuit.updateGatesNext();
-        this.updateRunStates();
+        this.#updateRunStates();
     }
-    fastForwardSim() {
+    #fastForwardSim() {
         this.circuit.startFast();
-        this.updateRunStates();
+        this.#updateRunStates();
     }
 }
 

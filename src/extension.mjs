@@ -43,6 +43,7 @@ class DigitalJS {
     #circuitChanged
     #circuitView
     #source_map
+    #circuit_edited
     constructor(context) {
         this.context = context;
 
@@ -67,6 +68,7 @@ class DigitalJS {
         this.files = new FilesMgr();
         this.dirty = false;
         this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        this.#circuit_edited = false;
         this.#source_map = new SourceMap();
         this.tick = 0;
         this.#tickUpdated = new vscode.EventEmitter();
@@ -254,6 +256,7 @@ class DigitalJS {
         this.#tickUpdated.fire(tick);
     }
     showCircuit(transform, pause) {
+        this.#circuit_edited = false;
         this.setTick(0);
         this.postPanelMessage({
             command: 'showcircuit',
@@ -429,12 +432,13 @@ class DigitalJS {
         this.showCircuit(false);
     }
     async saveJSONToFile() {
-        await new Promise((resolve) => {
-            this.updateCircuitWaits.push(resolve);
-            this.postPanelMessage({
-                command: 'savecircuit',
+        if (this.#circuit_edited)
+            await new Promise((resolve) => {
+                this.updateCircuitWaits.push(resolve);
+                this.postPanelMessage({
+                    command: 'savecircuit',
+                });
             });
-        });
         console.assert(this.files.circuit);
         const json = this.toJSON();
         const str = JSON.stringify(json);
@@ -632,12 +636,18 @@ class DigitalJS {
             case 'updatecircuit':
                 this.circuit = message.circuit;
                 this.dirty = true;
+                this.#circuit_edited = false;
                 this.context.workspaceState.update('digitaljs.circuit', this.circuit);
                 this.context.workspaceState.update('digitaljs.dirty', true);
                 let waits = this.updateCircuitWaits;
                 this.updateCircuitWaits = [];
                 for (const resolve of waits)
                     resolve(null);
+                return;
+            case 'circuitchanged':
+                this.context.workspaceState.update('digitaljs.dirty', true);
+                this.#circuit_edited = true;
+                this.dirty = true;
                 return;
             case 'tick':
                 this.setTick(message.tick);
@@ -760,6 +770,7 @@ class DigitalJS {
             this.files.reset();
             this.dirty = false;
             this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+            this.#circuit_edited = false;
             this.#source_map.clear();
             this.extra_data = {};
             this.clearMarker();

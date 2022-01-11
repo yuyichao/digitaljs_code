@@ -98,6 +98,7 @@ class LuaRunner {
 }
 
 class DigitalJS {
+    #circuit_dirty = false;
     constructor() {
         this.circuit = undefined;
         this.monitor = undefined;
@@ -136,6 +137,7 @@ class DigitalJS {
                 this.mkCircuit(message.circuit, message.opts);
                 return;
             case 'savecircuit':
+                this.#circuit_dirty = false;
                 vscode.postMessage({ command: "updatecircuit",
                                      circuit: this.circuit.toJSON() });
                 return;
@@ -160,6 +162,12 @@ class DigitalJS {
             case 'stoplua':
                 this.lua.stopLua(message.name);
                 return;
+        }
+    }
+    #dirtyCircuit() {
+        if (!this.#circuit_dirty) {
+            this.#circuit_dirty = true;
+            vscode.postMessage({ command: "circuitchanged" });
         }
     }
 
@@ -192,12 +200,26 @@ class DigitalJS {
         this.destroyCircuit();
         if (circuit_empty(data))
             return;
+        if (opts.transform)
+            this.#dirtyCircuit();
         const circuit_opts = {
             layoutEngine: 'elkjs',
             engine: digitaljs.engines.WorkerEngine,
             engineOptions: { workerURL: window.simWorkerUri }
         };
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
+        this.circuit.listenTo(this.circuit._graph, 'change:position', () => {
+            this.#dirtyCircuit();
+        });
+        this.circuit.listenTo(this.circuit._graph, 'change:vertices', () => {
+            this.#dirtyCircuit();
+        });
+        this.circuit.listenTo(this.circuit._graph, 'add', () => {
+            this.#dirtyCircuit();
+        });
+        this.circuit.listenTo(this.circuit._graph, 'remove', () => {
+            this.#dirtyCircuit();
+        });
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });

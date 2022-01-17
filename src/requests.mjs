@@ -73,8 +73,7 @@ class Yosys {
             this.#run(opts.optimize ? 'opt -full' : 'opt_clean');
             this.#run('json -o /output.json');
         }
-        catch (e) {
-            console.log(e);
+        catch {
             const error = this.#file_map.unmap_string(this.#ccall('errmsg', 'string', [], []));
             throw { error };
         }

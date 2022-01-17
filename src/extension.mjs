@@ -45,6 +45,7 @@ class DigitalJS {
     #source_map
     #circuit_edited
     #yosysWasmPath
+    #synth_result
     constructor(context) {
         this.context = context;
 
@@ -70,7 +71,7 @@ class DigitalJS {
 
         this.files = new FilesMgr();
         this.dirty = false;
-        this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
         this.#circuit_edited = false;
         this.#source_map = new SourceMap();
         this.tick = 0;
@@ -207,7 +208,7 @@ class DigitalJS {
     async restoreCircuit() {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
         if (circuit) {
-            this.circuit = circuit;
+            this.#synth_result = circuit;
             this.#source_map.loadMapWorkspace(
                 this.context.workspaceState.get('digitaljs.source_map'));
             return true;
@@ -224,7 +225,7 @@ class DigitalJS {
                 if (load_circuit) {
                     const v = json[fld];
                     if (v) {
-                        this.circuit[fld] = v;
+                        this.#synth_result[fld] = v;
                     }
                 }
                 delete json[fld];
@@ -263,7 +264,7 @@ class DigitalJS {
         this.setTick(0);
         this.postPanelMessage({
             command: 'showcircuit',
-            circuit: this.circuit,
+            circuit: this.#synth_result,
             opts: { transform, pause }
         });
     }
@@ -354,9 +355,9 @@ class DigitalJS {
             return vscode.window.showErrorMessage(`Synthesis error: ${error}`);
         }
         this.#source_map = source_map;
-        this.circuit = res.output;
+        this.#synth_result = res.output;
         this.dirty = true;
-        this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+        this.context.workspaceState.update('digitaljs.circuit', this.#synth_result);
         this.context.workspaceState.update('digitaljs.source_map',
                                            source_map.storeMapWorkspace());
         this.context.workspaceState.update('digitaljs.dirty', true);
@@ -387,7 +388,7 @@ class DigitalJS {
             files: this.files.toJSON(),
             options: this.synth_options,
             source_map: this.#source_map.storeMapCircuit(this.files.circuit),
-            ...this.circuit,
+            ...this.#synth_result,
             ...this.extra_data
         };
     }
@@ -410,14 +411,14 @@ class DigitalJS {
         else {
             this.synth_options = { ...default_synth_options };
         }
-        this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+        this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
         for (const fld of ['devices', 'connectors', 'subcircuits']) {
             const v = json[fld];
             if (v)
-                this.circuit[fld] = v;
+                this.#synth_result[fld] = v;
             delete json[fld];
         }
-        this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+        this.context.workspaceState.update('digitaljs.circuit', this.#synth_result);
         if ('source_map' in json) {
             this.#source_map.loadMapCircuit(uri, json.source_map);
             delete json.source_map;
@@ -636,10 +637,10 @@ class DigitalJS {
         }
         switch (message.command) {
             case 'updatecircuit':
-                this.circuit = message.circuit;
+                this.#synth_result = message.circuit;
                 this.dirty = true;
                 this.#circuit_edited = false;
-                this.context.workspaceState.update('digitaljs.circuit', this.circuit);
+                this.context.workspaceState.update('digitaljs.circuit', this.#synth_result);
                 this.context.workspaceState.update('digitaljs.dirty', true);
                 let waits = this.updateCircuitWaits;
                 this.updateCircuitWaits = [];
@@ -771,7 +772,7 @@ class DigitalJS {
             this.#circuitView = undefined;
             this.files.reset();
             this.dirty = false;
-            this.circuit = { devices: {}, connectors: [], subcircuits: {} };
+            this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
             this.#circuit_edited = false;
             this.#source_map.clear();
             this.extra_data = {};

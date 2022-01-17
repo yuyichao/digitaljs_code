@@ -123,9 +123,14 @@ function web_ext_config(env, argv) {
                 path: require.resolve('path-browserify'),
                 crypto: require.resolve('crypto-browserify'),
                 stream: require.resolve('stream-browserify'),
+                'tmp-promise': false,
+                child_process: false,
             },
             fallback: {
-                https: false
+                https: false,
+                fs: false,
+                assert: require.resolve("assert"),
+                util: require.resolve("util"),
             }
         },
         module: {

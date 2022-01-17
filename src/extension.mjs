@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { yosys2digitaljs } from './requests.mjs';
+import { run_yosys } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
 import { FilesMgr, FilesView } from './files_mgr.mjs';
 import { SourceMap } from './source_map.mjs';
@@ -44,6 +44,7 @@ class DigitalJS {
     #circuitView
     #source_map
     #circuit_edited
+    #yosysWasmPath
     constructor(context) {
         this.context = context;
 
@@ -60,6 +61,8 @@ class DigitalJS {
                                                 "codicons", "dist", "codicon.css");
         this.simWorker = readTextFile(vscode.Uri.joinPath(ext_uri, 'dist',
                                                           'digitaljs-sym-worker.js'));
+        this.#yosysWasmPath = vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
+                                                  "dist", "yosys.wasm");
 
         this.updateCircuitWaits = [];
         this.iopanelViews = [];
@@ -340,16 +343,15 @@ class DigitalJS {
         };
         let res;
         try {
-            res = await yosys2digitaljs({ files: data, options: opts });
+            res = await run_yosys(this.#yosysWasmPath, data, opts);
         }
         catch (e) {
             const error = e.error;
-            const yosys_stderr = e.yosys_stderr;
-            if (error === undefined && yosys_stderr === undefined) {
+            if (error === undefined) {
                 console.log(e);
                 return vscode.window.showErrorMessage(`Unknown yosys2digitaljs error.`);
             }
-            return vscode.window.showErrorMessage(`Synthesis error: ${error}\n${yosys_stderr}`);
+            return vscode.window.showErrorMessage(`Synthesis error: ${error}`);
         }
         this.#source_map = source_map;
         this.circuit = res.output;

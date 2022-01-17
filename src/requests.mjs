@@ -2,87 +2,100 @@
 
 'use strict';
 
-const vscode = require('vscode');
-let yosys2digitaljs;
+import * as vscode from 'vscode';
+import * as path from 'path';
+import yosys from 'yosysjs';
+import yosys2digitaljs from 'yosys2digitaljs';
 
-if (process.browser) {
-    yosys2digitaljs = async function (req_body) {
-        const server = vscode.workspace.getConfiguration('digitaljs').get('serverURL');
-        req_body = JSON.stringify(req_body);
-        const response = await fetch(server + "/api/yosys2digitaljs", {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: req_body
-        });
-        let reply;
+const rand_prefix = 'djs-IxU5De4QZDxUgn43Zwj1-_';
+const rand_suffix = '_-hbtdHFLoSvFPbPLnGSp8';
+const match_regex = new RegExp(`${rand_prefix}(\\d+)${rand_suffix}`, 'g');
+
+class FileMap {
+    #names = []
+    map_name(name) {
+        const idx = this.#names.length;
+        this.#names.push(name);
+        return `${rand_prefix}${idx}${rand_suffix}`;
+    }
+    unmap_string(str) {
+        return str.replaceAll(match_regex, (match, p1) => this.#names[parseInt(p1)]);
+    }
+}
+
+class Yosys {
+    static #wasmBinary
+    static async #getWasmBinary(uri) {
+        if (!Yosys.#wasmBinary)
+            Yosys.#wasmBinary = await vscode.workspace.fs.readFile(uri);
+        return Yosys.#wasmBinary;
+    }
+    #FS
+    #ccall
+    #file_map = new FileMap();
+    async init(uri) {
+        const M = {
+            wasmBinary: await Yosys.#getWasmBinary(uri),
+        };
+        await yosys(M);
+        this.#FS = M.FS;
+        this.#ccall = M.ccall;
+        // Yosys::yosys_setup()
+        M.ccall('_ZN5Yosys11yosys_setupEv', '', []);
+    }
+    #run(cmd) {
+        this.#ccall('run', '', ['string'], [cmd]);
+    }
+    process_files(files, opts = {}) {
         try {
-            reply = await response.json();
+            this.#run('design -reset');
+            for (const name in files) {
+                const ext = path.extname(name);
+                const pre_ext = name.substring(0, name.length - ext.length);
+                const escaped_name = this.#file_map.map_name(pre_ext) + ext;
+                this.#FS.writeFile(escaped_name, files[name]);
+                if (ext == '.sv') {
+                    this.#run(`read_verilog -sv ${escaped_name}`);
+                }
+                else {
+                    this.#run(`read_verilog ${escaped_name}`);
+                }
+            }
+            this.#run('hierarchy -auto-top');
+            this.#run('proc');
+            this.#run(opts.optimize ? 'opt' : 'opt_clean');
+            if (opts.fsm && opts.fsm != 'no') {
+                const fsmexpand = opts.fsmexpand ? " -expand" : "";
+                this.#run(options.fsm == "nomap" ? "fsm -nomap" + fsmexpand : "fsm" + fsmexpand);
+            }
+            this.#run('memory -nomap');
+            this.#run('wreduce -memx');
+            this.#run(opts.optimize ? 'opt -full' : 'opt_clean');
+            this.#run('json -o /output.json');
         }
         catch (e) {
-            if (response.status < 200 || response.status >= 300)
-                throw new Error(`[${response.status}] ${await response.text()}`);
-            throw e;
+            console.log(e);
+            const error = this.#file_map.unmap_string(this.#ccall('errmsg', 'string', [], []));
+            throw { error };
         }
-        if (response.status < 200 || response.status >= 300) {
-            reply.statusCode = response.status;
-            throw reply;
-        }
-        return reply;
+        const output = JSON.parse(this.#file_map.unmap_string(
+            new TextDecoder().decode(this.#FS.readFile('/output.json'))));
+        return output;
     }
 }
-else {
-    const https = require('https');
 
-    yosys2digitaljs = function (req_body) {
-        const server = vscode.workspace.getConfiguration('digitaljs').get('serverURL');
-        req_body = JSON.stringify(req_body);
-        return new Promise((resolve, reject) => {
-            // assume https for now...
-            const req = https.request(server, {
-                "path": "/api/yosys2digitaljs",
-                "method": "POST",
-                headers: {
-                    "accept": "*/*",
-                    "accept-encoding": "gzip,deflate,br",
-                    "content-length": req_body.length,
-                    "content-type": "application/json",
-                },
-                rejectUnauthorized: false // workaround let's encrypt certificate issue...
-            }, (res) => {
-                let rep_body = [];
-                res.on('data', function(chunk) {
-                    rep_body.push(chunk);
-                });
-                res.on('end', function() {
-                    rep_body = Buffer.concat(rep_body).toString()
-                    try {
-                        rep_body = JSON.parse(rep_body);
-                    }
-                    catch (e) {
-                        if (res.statusCode < 200 || res.statusCode >= 300) {
-                            reject(new Error(`[${res.statusCode}] ${rep_body}`));
-                            return;
-                        }
-                        reject(e);
-                        return;
-                    }
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                        rep_body.statusCode = res.statusCode;
-                        reject(rep_body);
-                        return;
-                    }
-                    resolve(rep_body);
-                });
-            });
-            req.on('error', function(err) {
-                reject(err);
-            });
-            req.write(req_body);
-            req.end();
-        });
-    }
+export async function run_yosys(uri, files, options) {
+    const yosys = new Yosys();
+    await yosys.init(uri);
+    const obj = yosys.process_files(files, options);
+    const portmaps = yosys2digitaljs.order_ports(obj);
+    const out = yosys2digitaljs.yosys_to_digitaljs(obj, portmaps, options);
+    const toporder = yosys2digitaljs.topsort(yosys2digitaljs.module_deps(obj));
+    toporder.pop();
+    const toplevel = toporder.pop();
+    const output = { subcircuits: {}, ... out[toplevel] };
+    for (const x of toporder)
+        output.subcircuits[x] = out[x];
+    yosys2digitaljs.io_ui(output);
+    return { output };
 }
-export { yosys2digitaljs };

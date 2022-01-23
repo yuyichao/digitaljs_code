@@ -11,7 +11,7 @@ import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { hash_sha512 } from './utils.mjs';
+import { hash_sha512, rel_compat1, rel_compat2 } from './utils.mjs';
 
 async function readTextFile(uri) {
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
@@ -577,14 +577,14 @@ class DigitalJS {
             script = await readTextFile(uri);
         this.postPanelMessage({
             command: 'runlua',
-            name: item.resourceUri.path,
+            name: item.resourceUri.toString(),
             script
         });
     }
     stopScript(item) {
         this.postPanelMessage({
             command: 'stoplua',
-            name: item.resourceUri.path
+            name: item.resourceUri.toString()
         });
     }
     showMarker(markers) {
@@ -667,15 +667,17 @@ class DigitalJS {
                 return;
             case 'luaerror': {
                 let name = message.name;
-                if (this.files.circuit)
-                    name = path.relative(path.dirname(this.files.circuit.path), name);
+                let uri = vscode.Uri.parse(name);
+                if (rel_compat1(this.files.circuit) && rel_compat2(this.files.circuit, uri))
+                    name = path.relative(path.dirname(this.files.circuit.path), uri.path);
                 vscode.window.showErrorMessage(`${name}: ${message.message}`);
                 return;
             }
             case 'luaprint': {
                 let name = message.name;
-                if (this.files.circuit)
-                    name = path.relative(path.dirname(this.files.circuit.path), name);
+                let uri = vscode.Uri.parse(name);
+                if (rel_compat1(this.files.circuit) && rel_compat2(this.files.circuit, uri))
+                    name = path.relative(path.dirname(this.files.circuit.path), uri.path);
                 vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
                 return;
             }

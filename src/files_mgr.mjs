@@ -32,14 +32,14 @@ export class FilesMgr {
             return;
         this.sources.set(uri.path, uri);
         if (path.extname(uri.path) == '.lua') {
-            this.#script_not_running[uri.path] = true;
+            this.#script_not_running[uri.toString()] = true;
         }
     }
     deleteSource(uri) {
         this.sources.delete(uri.path);
         if (path.extname(uri.path) == '.lua') {
-            delete this.#script_not_running[uri.path];
-            delete this.#script_running[uri.path];
+            delete this.#script_not_running[uri.toString()];
+            delete this.#script_running[uri.toString()];
         }
     }
     scriptStarted(file) {
@@ -96,10 +96,11 @@ class SourceFile extends vscode.TreeItem {
             name = path.basename(uri.path);
         }
         super(name, vscode.TreeItemCollapsibleState.None);
+        const uri_str = uri.toString();
         this.iconPath = new vscode.ThemeIcon('file');
-        this.id = uri.toString();
+        this.id = uri_str;
         this.resourceUri = uri;
-        this.contextValue = uri.path;
+        this.contextValue = uri_str;
         this.command = { title: 'Open', command: 'vscode.open',
                          arguments: [uri] };
     }

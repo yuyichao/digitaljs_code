@@ -86,52 +86,52 @@ class DigitalJS {
 
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openView',
-                                            () => this.openView()));
+                                            () => this.#openView()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openViewJSON',
-                                            (item) => this.openViewJSON(item)));
+                                            (item) => this.#openViewJSON(item)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openViewSource',
-                                            (item) => this.openViewSource(item)));
+                                            (item) => this.#openViewSource(item)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.pause',
-                                            () => this.pauseSim()));
+                                            () => this.#pauseSim()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.start',
-                                            () => this.startSim()));
+                                            () => this.#startSim()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.fastForward',
-                                            () => this.fastForwardSim()));
+                                            () => this.#fastForwardSim()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.singleStep',
-                                            () => this.singleStepSim()));
+                                            () => this.#singleStepSim()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.nextEvent',
-                                            () => this.nextEventSim()));
+                                            () => this.#nextEventSim()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.newJSON',
-                                            () => this.newJSON()));
+                                            () => this.#newJSON()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openJSON',
-                                            () => this.openJSON()));
+                                            () => this.#openJSON()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.addFiles',
-                                            () => this.addFiles()));
+                                            () => this.#addFiles()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.saveJSON',
-                                            () => this.saveJSON()));
+                                            () => this.#saveJSON()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.saveAsJSON',
-                                            () => this.saveAsJSON()));
+                                            () => this.#saveAsJSON()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.removeSource',
-                                            (item) => this.removeSource(item)));
+                                            (item) => this.#removeSource(item)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.startScript',
-                                            (item) => this.startScript(item)));
+                                            (item) => this.#startScript(item)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.stopScript',
-                                            (item) => this.stopScript(item)));
+                                            (item) => this.#stopScript(item)));
 
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider('digitaljs-proj-synth',
@@ -158,30 +158,30 @@ class DigitalJS {
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
-        this.restore();
+        this.#restore();
     }
-    async restore() {
-        if (!(await this.restoreView()))
+    async #restore() {
+        if (!(await this.#restoreView()))
             return;
-        await this.restoreFiles();
-        const circuit_restored = await this.restoreCircuit();
+        await this.#restoreFiles();
+        const circuit_restored = await this.#restoreCircuit();
         try {
-            await this.restoreMisc(!circuit_restored);
+            await this.#restoreMisc(!circuit_restored);
         }
         catch (e) {
             // Ignore
         }
-        this.showCircuit(false, true);
+        this.#showCircuit(false, true);
     }
-    async restoreView() {
+    async #restoreView() {
         const state = this.context.workspaceState.get('digitaljs.view');
         if (!state || !state.column)
             return false;
-        await this.createOrShowView(state.visible, state.column);
+        await this.#createOrShowView(state.visible, state.column);
         this.dirty = this.context.workspaceState.get('digitaljs.dirty');
         return true;
     }
-    async restoreFiles() {
+    async #restoreFiles() {
         const state = this.context.workspaceState.get('digitaljs.files');
         if (!state)
             return;
@@ -197,7 +197,7 @@ class DigitalJS {
         this.files.refresh();
         this.#saveFilesStates();
     }
-    async restoreCircuit() {
+    async #restoreCircuit() {
         const circuit = this.context.workspaceState.get('digitaljs.circuit');
         if (circuit) {
             this.#synth_result = circuit;
@@ -207,12 +207,12 @@ class DigitalJS {
         }
         return false;
     }
-    async restoreMisc(load_circuit) {
+    async #restoreMisc(load_circuit) {
         const opt = this.context.workspaceState.get('digitaljs.synth_options');
         if (opt)
             this.synth_options = opt;
         if (this.files.circuit) {
-            const json = await this.readJSONFile(this.files.circuit);
+            const json = await this.#readJSONFile(this.files.circuit);
             for (const fld of ['devices', 'connectors', 'subcircuits']) {
                 if (load_circuit) {
                     const v = json[fld];
@@ -247,20 +247,20 @@ class DigitalJS {
         this.context.workspaceState.update('digitaljs.files', state);
         this.context.workspaceState.update('digitaljs.synth_options', this.synth_options);
     }
-    setTick(tick) {
+    #setTick(tick) {
         this.tick = tick;
         this.#tickUpdated.fire(tick);
     }
-    showCircuit(transform, pause) {
+    #showCircuit(transform, pause) {
         this.#circuit_edited = false;
-        this.setTick(0);
+        this.#setTick(0);
         this.postPanelMessage({
             command: 'showcircuit',
             circuit: this.#synth_result,
             opts: { transform, pause }
         });
     }
-    createSourceMapForSynth() {
+    #createSourceMapForSynth() {
         // Compute a short version of the file name
         const basenames_map = {};
         for (let file of this.files.sources.values()) {
@@ -300,7 +300,7 @@ class DigitalJS {
         }
         return source_map;
     }
-    async loadSourcesForSynth(source_map) {
+    async #loadSourcesForSynth(source_map) {
         const data = {};
         const docs = {};
         for (const doc of vscode.workspace.textDocuments)
@@ -322,11 +322,11 @@ class DigitalJS {
         return data;
     }
     async doSynth() {
-        this.clearMarker();
-        const source_map = this.createSourceMapForSynth();
+        this.#clearMarker();
+        const source_map = this.#createSourceMapForSynth();
         if (!source_map)
             return;
-        const data = await this.loadSourcesForSynth(source_map);
+        const data = await this.#loadSourcesForSynth(source_map);
         const transform = this.synth_options.transform;
         const opts = {
             optimize: this.synth_options.opt,
@@ -353,29 +353,29 @@ class DigitalJS {
         this.context.workspaceState.update('digitaljs.source_map',
                                            source_map.storeMapWorkspace());
         this.context.workspaceState.update('digitaljs.dirty', true);
-        this.showCircuit(transform);
+        this.#showCircuit(transform);
         this.#circuitView.reveal();
     }
     updateOptions(options) {
         this.synth_options = { ...options };
         this.context.workspaceState.update('digitaljs.synth_options', this.synth_options);
     }
-    pauseSim() {
+    #pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
     }
-    startSim() {
+    #startSim() {
         this.postPanelMessage({ command: 'startsim' });
     }
-    fastForwardSim() {
+    #fastForwardSim() {
         this.postPanelMessage({ command: 'fastforwardsim' });
     }
-    singleStepSim() {
+    #singleStepSim() {
         this.postPanelMessage({ command: 'singlestepsim' });
     }
-    nextEventSim() {
+    #nextEventSim() {
         this.postPanelMessage({ command: 'nexteventsim' });
     }
-    toJSON() {
+    #toJSON() {
         return {
             files: this.files.toJSON(),
             options: this.synth_options,
@@ -384,7 +384,7 @@ class DigitalJS {
             ...this.extra_data
         };
     }
-    loadJSON(json, uri) {
+    #loadJSON(json, uri) {
         this.files.reset(uri);
         this.dirty = false;
         this.context.workspaceState.update('digitaljs.dirty', false);
@@ -424,9 +424,9 @@ class DigitalJS {
         this.files.refresh();
         this.#saveFilesStates();
         this.#circuitChanged.fire();
-        this.showCircuit(false);
+        this.#showCircuit(false);
     }
-    async saveJSONToFile() {
+    async #saveJSONToFile() {
         if (this.#circuit_edited)
             await new Promise((resolve) => {
                 this.updateCircuitWaits.push(resolve);
@@ -435,13 +435,13 @@ class DigitalJS {
                 });
             });
         console.assert(this.files.circuit);
-        const json = this.toJSON();
+        const json = this.#toJSON();
         const str = JSON.stringify(json);
         await vscode.workspace.fs.writeFile(this.files.circuit, new TextEncoder().encode(str));
         this.dirty = false;
         this.context.workspaceState.update('digitaljs.dirty', false);
     }
-    async confirmUnsavedJSON() {
+    async #confirmUnsavedJSON() {
         if (!this.dirty)
             return true;
         const res = await vscode.window.showErrorMessage(`Save current circuit?`,
@@ -449,15 +449,15 @@ class DigitalJS {
         if (!res || res == 'Cancel')
             return false;
         if (res == 'Yes')
-            await this.saveJSON();
+            await this.#saveJSON();
         return true;
     }
-    async newJSON() {
-        if (!(await this.confirmUnsavedJSON()))
+    async #newJSON() {
+        if (!(await this.#confirmUnsavedJSON()))
             return;
-        this.loadJSON({});
+        this.#loadJSON({});
     }
-    async readJSONFile(file) {
+    async #readJSONFile(file) {
         let str;
         try {
             str = await read_txt_file(file);
@@ -480,14 +480,14 @@ class DigitalJS {
         }
         return json;
     }
-    async loadJSONFile(file) {
-        const json = await this.readJSONFile(file);
+    async #loadJSONFile(file) {
+        const json = await this.#readJSONFile(file);
         if (!json)
             return;
-        this.loadJSON(json, file);
+        this.#loadJSON(json, file);
     }
-    async openJSON() {
-        if (!(await this.confirmUnsavedJSON()))
+    async #openJSON() {
+        if (!(await this.#confirmUnsavedJSON()))
             return;
         const file = await vscode.window.showOpenDialog({
             canSelectFiles: true,
@@ -499,9 +499,9 @@ class DigitalJS {
         });
         if (!file)
             return;
-        return this.loadJSONFile(file[0]);
+        return this.#loadJSONFile(file[0]);
     }
-    async addFiles() {
+    async #addFiles() {
         const files = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectFolders: false,
@@ -522,18 +522,18 @@ class DigitalJS {
         this.dirty = true;
         this.context.workspaceState.update('digitaljs.dirty', true);
     }
-    async saveJSON() {
+    async #saveJSON() {
         if (!this.files.circuit)
-            return this.saveAsJSON();
+            return this.#saveAsJSON();
         try {
-            await this.saveJSONToFile();
+            await this.#saveJSONToFile();
         }
         catch (e) {
             return vscode.window.showErrorMessage(`Saving to ${this.files.circuit} failed: ${e}`);
         }
         return vscode.window.showInformationMessage(`Circuit saved to ${this.files.circuit}`);
     }
-    async saveAsJSON() {
+    async #saveAsJSON() {
         const files = await vscode.window.showOpenDialog({
             filters: {
                 "Circuit JSON": ['json'],
@@ -545,7 +545,7 @@ class DigitalJS {
         const origin_circuit = this.files.circuit;
         this.files.circuit = file;
         try {
-            await this.saveJSONToFile();
+            await this.#saveJSONToFile();
         }
         catch (e) {
             this.files.circuit = origin_circuit;
@@ -554,12 +554,12 @@ class DigitalJS {
         this.files.refresh();
         this.#saveFilesStates();
     }
-    removeSource(item) {
+    #removeSource(item) {
         this.files.deleteSource(item.resourceUri);
         this.files.refresh();
         this.#saveFilesStates();
     }
-    async startScript(item) {
+    async #startScript(item) {
         const uri = item.resourceUri;
         const uri_str = uri.toString();
         let script;
@@ -577,13 +577,13 @@ class DigitalJS {
             script
         });
     }
-    stopScript(item) {
+    #stopScript(item) {
         this.postPanelMessage({
             command: 'stoplua',
             name: item.resourceUri.toString()
         });
     }
-    showMarker(markers) {
+    #showMarker(markers) {
         const editor_map = {};
         const getEditorInfo = (name) => {
             let edit_info = editor_map[name];
@@ -612,7 +612,7 @@ class DigitalJS {
             edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
         }
     }
-    clearMarker() {
+    #clearMarker() {
         for (const editor of this.highlightedEditors)
             editor.setDecorations(this.highlightDecoType, []);
         this.highlightedEditors.length = 0;
@@ -624,7 +624,7 @@ class DigitalJS {
     }
     processCommand(message) {
         if (message.command.startsWith('iopanel:')) {
-            this.processIOPanelMessage(message);
+            this.#processIOPanelMessage(message);
             return;
         }
         switch (message.command) {
@@ -645,7 +645,7 @@ class DigitalJS {
                 this.dirty = true;
                 return;
             case 'tick':
-                this.setTick(message.tick);
+                this.#setTick(message.tick);
                 return;
             case 'runstate':
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
@@ -678,12 +678,12 @@ class DigitalJS {
                 return;
             }
             case 'showmarker':
-                return this.showMarker(message.markers);
+                return this.#showMarker(message.markers);
             case 'clearmarker':
-                return this.clearMarker();
+                return this.#clearMarker();
         }
     }
-    processIOPanelMessage(message) {
+    #processIOPanelMessage(message) {
         // Cache the state here for the status view at initialization time.
         switch (message.command) {
             case 'iopanel:view': {
@@ -701,25 +701,25 @@ class DigitalJS {
         }
         this.#iopanelMessage.fire(message);
     }
-    async openViewJSON(uri) {
-        await this.createOrShowView(true);
-        if (!(await this.confirmUnsavedJSON()))
+    async #openViewJSON(uri) {
+        await this.#createOrShowView(true);
+        if (!(await this.#confirmUnsavedJSON()))
             return;
-        return this.loadJSONFile(uri);
+        return this.#loadJSONFile(uri);
     }
-    async openViewSource(item) {
-        await this.createOrShowView(true);
+    async #openViewSource(item) {
+        await this.#createOrShowView(true);
         this.files.addSource(uri);
         this.files.refresh();
         this.#saveFilesStates();
         this.dirty = true;
     }
-    async openView() {
+    async #openView() {
         const active_editor = vscode.window.activeTextEditor;
         let uri;
         if (active_editor)
             uri = active_editor.document.uri;
-        await this.createOrShowView(true);
+        await this.#createOrShowView(true);
         if (!uri)
             return;
         const ext = path.extname(uri.path);
@@ -728,9 +728,9 @@ class DigitalJS {
                 `Open ${uri.path} as circuit?`, 'Yes', 'No');
             if (res != 'Yes')
                 return;
-            if (!(await this.confirmUnsavedJSON()))
+            if (!(await this.#confirmUnsavedJSON()))
                 return;
-            return this.loadJSONFile(uri);
+            return this.#loadJSONFile(uri);
         }
         if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
             const res = await vscode.window.showInformationMessage(
@@ -744,7 +744,7 @@ class DigitalJS {
             return;
         }
     }
-    async createOrShowView(focus, column) {
+    async #createOrShowView(focus, column) {
         const active = vscode.window.activeTextEditor;
         column = column || (active ? active.viewColumn : undefined);
         if (this.#circuitView) {
@@ -770,7 +770,7 @@ class DigitalJS {
             this.#circuit_edited = false;
             this.#source_map.clear();
             this.extra_data = {};
-            this.clearMarker();
+            this.#clearMarker();
             this.context.workspaceState.update('digitaljs.view',
                                                { column: undefined, visible: false });
         });

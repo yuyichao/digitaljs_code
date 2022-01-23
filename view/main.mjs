@@ -265,9 +265,9 @@ class DigitalJS {
         set_live(this.#monitorview.live);
         live_btn.on('click', (e) => {
             this.#monitorview.live = !this.#monitorview.live;
-                if (this.#monitorview.live)
-                    this.#monitorview.start = this.circuit.tick - this.#monitorview.width / this.#monitorview.pixelsPerTick;
-            });
+            if (this.#monitorview.live)
+                this.#monitorview.start = this.circuit.tick - this.#monitorview.width / this.#monitorview.pixelsPerTick;
+        });
         this.#monitorview.on('change:live', set_live);
         this.#monitor.on('add', () => {
             if ($('#monitorbox').height() == 0)

@@ -3,6 +3,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { createHash } from 'crypto';
 
 export function hash_sha512(data) {
@@ -18,6 +19,12 @@ export function rel_compat2(uri1, uri2) {
     if (!uri1 || !rel_compat1(uri2))
         return false;
     return uri1.authority == uri2.authority && uri1.scheme == uri2.scheme;
+}
+
+export function get_dirname_uri(uri) {
+    if (!rel_compat1(uri))
+        return;
+    return vscode.Uri.from({ ...uri, path: path.dirname(uri.path)})
 }
 
 export async function read_txt_file(uri) {

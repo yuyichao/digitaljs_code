@@ -4,14 +4,14 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { run_yosys, set_yosys_wasm_uri } from './requests.mjs';
+import { set_yosys_wasm_uri } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
-import { FilesMgr, FilesView } from './files_mgr.mjs';
-import { SourceMap } from './source_map.mjs';
+import { FilesView } from './files_view.mjs';
+import { Sources } from './sources.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { hash_sha512, rel_compat1, rel_compat2, read_txt_file, write_txt_file } from './utils.mjs';
+import { rel_compat2, read_txt_file, write_txt_file } from './utils.mjs';
 
 export function activate(context) {
     new DigitalJS(context);
@@ -35,7 +35,6 @@ class DigitalJS {
     #iopanelViewIndices
     #circuitChanged
     #circuitView
-    #source_map
     #synth_result
     constructor(context) {
         this.context = context;
@@ -59,10 +58,10 @@ class DigitalJS {
         this.iopanelViews = [];
         this.#iopanelViewIndices = {};
 
-        this.files = new FilesMgr();
+        this.sources = new Sources();
+
         this.dirty = false;
         this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
-        this.#source_map = new SourceMap();
         this.tick = 0;
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
@@ -141,20 +140,14 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', new FilesView(this)));
 
-        context.subscriptions.push(
-            vscode.workspace.onDidChangeTextDocument((e) => {
-                const reverse_source_map = this.#source_map.reverseMap();
-                const uri_str = e.document.uri.toString();
-                const key = reverse_source_map[uri_str];
-                if (!key)
-                    return;
-                // Force a recompute of matching state next time.
-                delete this.#source_map.find(key).match;
-        }));
+        context.subscriptions.push(this);
 
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
+    }
+    dispose() {
+        this.sources.dispose();
     }
     #setTick(tick) {
         this.tick = tick;
@@ -168,93 +161,18 @@ class DigitalJS {
             opts: { pause }
         });
     }
-    #createSourceMapForSynth() {
-        // Compute a short version of the file name
-        const basenames_map = {};
-        for (let file of this.files.sources.values()) {
-            if (path.extname(file.path) == '.lua')
-                continue;
-            let key = path.basename(file.path);
-            const files = basenames_map[key];
-            if (!files) {
-                basenames_map[key] = [file];
-            }
-            else {
-                files.push(file);
-            }
-        }
-        if (Object.keys(basenames_map).length == 0) {
-            vscode.window.showErrorMessage(`No source file added for synthesis.`);
-            return;
-        }
-        const source_map = new SourceMap();
-        const circuit_file = this.files.circuit;
-        for (const basename in basenames_map) {
-            const files = basenames_map[basename];
-            if (files.length == 1) {
-                source_map.newEntry(basename, files[0]);
-                continue;
-            }
-            for (const file of files) {
-                let name;
-                if (circuit_file) {
-                    name = path.relative(path.dirname(circuit_file.path), file.path);
-                }
-                else {
-                    name = file.path;
-                }
-                source_map.newEntry(name, file);
-            }
-        }
-        return source_map;
-    }
-    async #loadSourcesForSynth(source_map) {
-        const data = {};
-        const docs = {};
-        for (const doc of vscode.workspace.textDocuments)
-            docs[doc.uri.toString()] = doc;
-        for (const [key, info] of source_map.entries()) {
-            const uri = info.uri;
-            const uri_str = uri.toString();
-            const doc = docs[uri_str];
-            let content;
-            if (doc) {
-                content = doc.getText();
-            }
-            else {
-                content = await read_txt_file(uri);
-            }
-            info.sha512 = hash_sha512(content);
-            data[key] = content;
-        }
-        return data;
-    }
     async doSynth() {
         this.#clearMarker();
-        const source_map = this.#createSourceMapForSynth();
-        if (!source_map)
-            return;
-        const data = await this.#loadSourcesForSynth(source_map);
-        const opts = {
+        // Load a snapshot of the options up front
+        const res = await this.sources.doSynth({
             optimize: this.synth_options.opt,
             fsm: this.synth_options.fsm == "no" ? "" : this.synth_options.fsm,
             fsmexpand: this.synth_options.fsmexpand,
             lint: false,
             transform: this.synth_options.transform,
-        };
-        let res;
-        try {
-            res = await run_yosys(data, opts);
-        }
-        catch (e) {
-            const error = e.error;
-            if (error === undefined) {
-                console.log(e);
-                return vscode.window.showErrorMessage(`Unknown yosys2digitaljs error.`);
-            }
-            return vscode.window.showErrorMessage(`Synthesis error: ${error}`);
-        }
-        this.#source_map = source_map;
+        });
+        if (!res)
+            return;
         this.#synth_result = res.output;
         this.dirty = true;
         this.#showCircuit();
@@ -279,25 +197,40 @@ class DigitalJS {
         this.postPanelMessage({ command: 'nexteventsim' });
     }
     #toJSON() {
+        const [sources, has_fullpath] = this.sources.toSave();
+        if (has_fullpath)
+            vscode.window.showWarningMessage(`Saved project contains full path to source file.`);
         return {
-            files: this.files.toJSON(),
+            sources: sources,
             options: this.synth_options,
-            source_map: this.#source_map.storeMapCircuit(this.files.circuit),
             ...this.#synth_result,
             ...this.extra_data
         };
     }
-    #loadJSON(json, uri) {
-        this.files.reset(uri);
-        this.dirty = false;
-        if ('files' in json) {
-            const files = json.files;
-            delete json.files;
-            console.assert(uri);
-            for (const file of files) {
-                this.files.addSource(vscode.Uri.joinPath(uri, '..', file));
+    #load_sources(doc_uri, data) {
+        if (data.sources) {
+            this.sources.load(doc_uri, data.sources);
+            return;
+        }
+        if (data.source_map) {
+            const sources = [];
+            for (const name in data.source_map)
+                sources.push({ ...data.source_map[name], name });
+            this.sources.load(doc_uri, sources);
+        }
+        if (data.files) {
+            for (const file of data.files) {
+                this.sources.addSource(vscode.Uri.joinPath(doc_uri, '..', file));
             }
         }
+    }
+    #loadJSON(json, uri) {
+        this.#load_sources(uri, json);
+        delete json.files;
+        delete json.source_map;
+        delete json.sources;
+
+        this.dirty = false;
         if ('options' in json) {
             this.synth_options = json.options;
             delete json.options;
@@ -312,23 +245,16 @@ class DigitalJS {
                 this.#synth_result[fld] = v;
             delete json[fld];
         }
-        if ('source_map' in json) {
-            this.#source_map.loadMapCircuit(uri, json.source_map);
-            delete json.source_map;
-        }
-        else {
-            this.#source_map.clear();
-        }
         this.extra_data = json;
-        this.files.refresh();
+        this.sources.refresh();
         this.#circuitChanged.fire();
         this.#showCircuit();
     }
     async #saveJSONToFile() {
-        console.assert(this.files.circuit);
+        console.assert(this.sources.doc_uri);
         const json = this.#toJSON();
         const str = JSON.stringify(json);
-        await write_txt_file(this.files.circuit, str);
+        await write_txt_file(this.sources.doc_uri, str);
         this.dirty = false;
     }
     async #confirmUnsavedJSON() {
@@ -406,20 +332,20 @@ class DigitalJS {
         if (!files)
             return;
         for (const file of files)
-            this.files.addSource(file);
-        this.files.refresh();
+            this.sources.addSource(file);
+        this.sources.refresh();
         this.dirty = true;
     }
     async #saveJSON() {
-        if (!this.files.circuit)
+        if (!this.sources.doc_uri)
             return this.#saveAsJSON();
         try {
             await this.#saveJSONToFile();
         }
         catch (e) {
-            return vscode.window.showErrorMessage(`Saving to ${this.files.circuit} failed: ${e}`);
+            return vscode.window.showErrorMessage(`Saving to ${this.sources.doc_uri} failed: ${e}`);
         }
-        return vscode.window.showInformationMessage(`Circuit saved to ${this.files.circuit}`);
+        return vscode.window.showInformationMessage(`Circuit saved to ${this.sources.doc_uri}`);
     }
     async #saveAsJSON() {
         const files = await vscode.window.showOpenDialog({
@@ -430,20 +356,20 @@ class DigitalJS {
         if (!files)
             return;
         const file = files[0];
-        const origin_circuit = this.files.circuit;
-        this.files.circuit = file;
+        const origin_doc = this.sources.doc_uri;
+        this.sources.doc_uri = file;
         try {
             await this.#saveJSONToFile();
         }
         catch (e) {
-            this.files.circuit = origin_circuit;
+            this.sources.doc_uri = origin_doc;
             return vscode.window.showErrorMessage(`Saving as ${file} failed: ${e}`);
         }
-        this.files.refresh();
+        this.sources.refresh();
     }
     #removeSource(item) {
-        this.files.deleteSource(item.resourceUri);
-        this.files.refresh();
+        this.sources.deleteSource(item.resourceUri);
+        this.sources.refresh();
         this.dirty = true;
     }
     async #startScript(item) {
@@ -476,7 +402,7 @@ class DigitalJS {
             let edit_info = editor_map[name];
             if (edit_info)
                 return edit_info;
-            const src_info = this.#source_map.find(name);
+            const src_info = this.sources.findByName(name);
             if (!src_info)
                 return;
             const editor = src_info.findEditor();
@@ -531,24 +457,24 @@ class DigitalJS {
                                                message.hasPendingEvents);
                 return;
             case 'luastarted':
-                this.files.scriptStarted(message.name);
+                this.sources.scriptStarted(message.name);
                 return;
             case 'luastop':
-                this.files.scriptStopped(message.name);
+                this.sources.scriptStopped(message.name);
                 return;
             case 'luaerror': {
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
-                if (rel_compat1(this.files.circuit) && rel_compat2(this.files.circuit, uri))
-                    name = path.relative(path.dirname(this.files.circuit.path), uri.path);
+                if (rel_compat2(this.sources.doc_dir_uri, uri))
+                    name = path.relative(this.sources.doc_dir_uri.path, uri.path);
                 vscode.window.showErrorMessage(`${name}: ${message.message}`);
                 return;
             }
             case 'luaprint': {
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
-                if (rel_compat1(this.files.circuit) && rel_compat2(this.files.circuit, uri))
-                    name = path.relative(path.dirname(this.files.circuit.path), uri.path);
+                if (rel_compat2(this.sources.doc_dir_uri, uri))
+                    name = path.relative(this.sources.doc_dir_uri.path, uri.path);
                 vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
                 return;
             }
@@ -584,8 +510,8 @@ class DigitalJS {
     }
     async #openViewSource(item) {
         await this.#createOrShowView(true);
-        this.files.addSource(uri);
-        this.files.refresh();
+        this.sources.addSource(uri);
+        this.sources.refresh();
         this.dirty = true;
     }
     async #openView() {
@@ -611,8 +537,8 @@ class DigitalJS {
                 `Add ${uri.path} to current circuit?`, 'Yes', 'No');
             if (res != 'Yes')
                 return;
-            this.files.addSource(uri);
-            this.files.refresh();
+            this.sources.addSource(uri);
+            this.sources.refresh();
             this.dirty = true;
             return;
         }
@@ -635,10 +561,10 @@ class DigitalJS {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             this.#circuitView = undefined;
-            this.files.reset();
             this.dirty = false;
             this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
-            this.#source_map.clear();
+            this.sources.dispose();
+            this.sources = new Sources();
             this.extra_data = {};
             this.#clearMarker();
         });

@@ -170,7 +170,7 @@ class DigitalJS {
         catch (e) {
             // Ignore
         }
-        this.#showCircuit(false, true);
+        this.#showCircuit(true);
     }
     async #restoreView() {
         const state = this.context.workspaceState.get('digitaljs.view');
@@ -250,13 +250,13 @@ class DigitalJS {
         this.tick = tick;
         this.#tickUpdated.fire(tick);
     }
-    #showCircuit(transform, pause) {
+    #showCircuit(pause) {
         this.#circuit_edited = false;
         this.#setTick(0);
         this.postPanelMessage({
             command: 'showcircuit',
             circuit: this.#synth_result,
-            opts: { transform, pause }
+            opts: { pause }
         });
     }
     #createSourceMapForSynth() {
@@ -326,12 +326,12 @@ class DigitalJS {
         if (!source_map)
             return;
         const data = await this.#loadSourcesForSynth(source_map);
-        const transform = this.synth_options.transform;
         const opts = {
             optimize: this.synth_options.opt,
             fsm: this.synth_options.fsm == "no" ? "" : this.synth_options.fsm,
             fsmexpand: this.synth_options.fsmexpand,
-            lint: false
+            lint: false,
+            transform: this.synth_options.transform,
         };
         let res;
         try {
@@ -352,7 +352,7 @@ class DigitalJS {
         this.context.workspaceState.update('digitaljs.source_map',
                                            source_map.storeMapWorkspace());
         this.context.workspaceState.update('digitaljs.dirty', true);
-        this.#showCircuit(transform);
+        this.#showCircuit();
         this.#circuitView.reveal();
     }
     updateOptions(options) {
@@ -423,7 +423,7 @@ class DigitalJS {
         this.files.refresh();
         this.#saveFilesStates();
         this.#circuitChanged.fire();
-        this.#showCircuit(false);
+        this.#showCircuit();
     }
     async #saveJSONToFile() {
         if (this.#circuit_edited)

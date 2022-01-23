@@ -199,13 +199,9 @@ class DigitalJS {
         });
     }
     #mkCircuit(data, opts) {
-        if (opts.transform)
-            data = digitaljs.transform.transformCircuit(data);
         this.#destroyCircuit();
         if (circuit_empty(data))
             return;
-        if (opts.transform)
-            this.#dirtyCircuit();
         const circuit_opts = {
             layoutEngine: 'elkjs',
             engine: digitaljs.engines.WorkerEngine,

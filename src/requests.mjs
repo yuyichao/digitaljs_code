@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import yosys from 'yosysjs';
 import yosys2digitaljs from 'yosys2digitaljs';
+import * as digitaljs_transform from '../node_modules/digitaljs/src/transform.mjs';
 
 const rand_prefix = 'djs-IxU5De4QZDxUgn43Zwj1-_';
 const rand_suffix = '_-hbtdHFLoSvFPbPLnGSp8';
@@ -98,9 +99,11 @@ export async function run_yosys(files, options) {
     const toporder = yosys2digitaljs.topsort(yosys2digitaljs.module_deps(obj));
     toporder.pop();
     const toplevel = toporder.pop();
-    const output = { subcircuits: {}, ... out[toplevel] };
+    let output = { subcircuits: {}, ... out[toplevel] };
     for (const x of toporder)
         output.subcircuits[x] = out[x];
     yosys2digitaljs.io_ui(output);
+    if (options.transform)
+        output = digitaljs_transform.transformCircuit(output);
     return { output };
 }

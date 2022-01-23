@@ -557,6 +557,8 @@ class DigitalJS {
         this.files.deleteSource(item.resourceUri);
         this.files.refresh();
         this.#saveFilesStates();
+        this.dirty = true;
+        this.context.workspaceState.update('digitaljs.dirty', true);
     }
     async #startScript(item) {
         const uri = item.resourceUri;

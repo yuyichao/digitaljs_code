@@ -11,11 +11,7 @@ import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { hash_sha512, rel_compat1, rel_compat2 } from './utils.mjs';
-
-async function readTextFile(uri) {
-    return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
-}
+import { hash_sha512, rel_compat1, rel_compat2, read_txt_file } from './utils.mjs';
 
 export function activate(context) {
     new DigitalJS(context);
@@ -56,8 +52,8 @@ class DigitalJS {
                                                  "toolkit.min.js");
         this.codIconsPath = vscode.Uri.joinPath(ext_uri, "node_modules", "@vscode",
                                                 "codicons", "dist", "codicon.css");
-        this.simWorker = readTextFile(vscode.Uri.joinPath(ext_uri, 'dist',
-                                                          'digitaljs-sym-worker.js'));
+        this.simWorker = read_txt_file(vscode.Uri.joinPath(ext_uri, 'dist',
+                                                           'digitaljs-sym-worker.js'));
         this.#yosysWasmPath = vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
                                                   "dist", "yosys.wasm");
 
@@ -318,7 +314,7 @@ class DigitalJS {
                 content = doc.getText();
             }
             else {
-                content = await readTextFile(uri);
+                content = await read_txt_file(uri);
             }
             info.sha512 = hash_sha512(content);
             data[key] = content;
@@ -464,7 +460,7 @@ class DigitalJS {
     async readJSONFile(file) {
         let str;
         try {
-            str = await readTextFile(file);
+            str = await read_txt_file(file);
         }
         catch (e) {
             await vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
@@ -574,7 +570,7 @@ class DigitalJS {
             }
         }
         if (script === undefined)
-            script = await readTextFile(uri);
+            script = await read_txt_file(uri);
         this.postPanelMessage({
             command: 'runlua',
             name: item.resourceUri.toString(),

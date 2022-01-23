@@ -11,11 +11,7 @@ import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { createHash } from 'crypto';
-
-function hash_sha512(data) {
-    return createHash('sha512').update(data).digest('hex');
-}
+import { hash_sha512 } from './utils.mjs';
 
 async function readTextFile(uri) {
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));

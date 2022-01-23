@@ -4,11 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { createHash } from 'crypto';
-
-function hash_sha512(data) {
-    return createHash('sha512').update(data).digest('hex');
-}
+import { hash_sha512 } from './utils.mjs';
 
 class SourceInfo {
     constructor(uri, sha512) {

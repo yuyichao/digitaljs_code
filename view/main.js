@@ -164,7 +164,7 @@ class DigitalJS {
                 this.#lua.run(message.name, message.script);
                 return;
             case 'stoplua':
-                this.#lua.stopLua(message.name);
+                this.#lua.stop(message.name);
                 return;
         }
     }

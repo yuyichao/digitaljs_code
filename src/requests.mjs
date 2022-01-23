@@ -23,19 +23,25 @@ class FileMap {
     }
 }
 
+let yosysWasmURI;
+
+export function set_yosys_wasm_uri(uri) {
+    yosysWasmURI = uri;
+}
+
 class Yosys {
     static #wasmBinary
-    static async #getWasmBinary(uri) {
+    static async #getWasmBinary() {
         if (!Yosys.#wasmBinary)
-            Yosys.#wasmBinary = await vscode.workspace.fs.readFile(uri);
+            Yosys.#wasmBinary = await vscode.workspace.fs.readFile(yosysWasmURI);
         return Yosys.#wasmBinary;
     }
     #FS
     #ccall
     #file_map = new FileMap();
-    async init(uri) {
+    async init() {
         const M = {
-            wasmBinary: await Yosys.#getWasmBinary(uri),
+            wasmBinary: await Yosys.#getWasmBinary(),
         };
         await yosys(M);
         this.#FS = M.FS;
@@ -83,9 +89,9 @@ class Yosys {
     }
 }
 
-export async function run_yosys(uri, files, options) {
+export async function run_yosys(files, options) {
     const yosys = new Yosys();
-    await yosys.init(uri);
+    await yosys.init();
     const obj = yosys.process_files(files, options);
     const portmaps = yosys2digitaljs.order_ports(obj);
     const out = yosys2digitaljs.yosys_to_digitaljs(obj, portmaps, options);

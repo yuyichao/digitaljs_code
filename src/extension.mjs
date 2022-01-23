@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { run_yosys } from './requests.mjs';
+import { run_yosys, set_yosys_wasm_uri } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
 import { FilesMgr, FilesView } from './files_mgr.mjs';
 import { SourceMap } from './source_map.mjs';
@@ -36,7 +36,6 @@ class DigitalJS {
     #circuitView
     #source_map
     #circuit_edited
-    #yosysWasmPath
     #synth_result
     constructor(context) {
         this.context = context;
@@ -54,8 +53,8 @@ class DigitalJS {
                                                 "codicons", "dist", "codicon.css");
         this.simWorker = read_txt_file(vscode.Uri.joinPath(ext_uri, 'dist',
                                                            'digitaljs-sym-worker.js'));
-        this.#yosysWasmPath = vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
-                                                  "dist", "yosys.wasm");
+        set_yosys_wasm_uri(vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
+                                               "dist", "yosys.wasm"));
 
         this.updateCircuitWaits = [];
         this.iopanelViews = [];
@@ -336,7 +335,7 @@ class DigitalJS {
         };
         let res;
         try {
-            res = await run_yosys(this.#yosysWasmPath, data, opts);
+            res = await run_yosys(data, opts);
         }
         catch (e) {
             const error = e.error;

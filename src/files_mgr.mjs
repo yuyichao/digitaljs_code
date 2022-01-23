@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { rel_compat1, rel_compat2 } from './utils.mjs';
 
 export class FilesMgr {
     #script_running
@@ -88,7 +89,7 @@ class CircuitFile extends vscode.TreeItem {
 class SourceFile extends vscode.TreeItem {
     constructor(circuit, uri) {
         let name;
-        if (circuit) {
+        if (rel_compat2(circuit, uri)) {
             name = path.relative(path.dirname(circuit.path), uri.path);
         }
         else {
@@ -126,9 +127,10 @@ export class FilesView {
         return element;
     }
     async getChildren(element) {
-        const circuit_file = this.#djs.files.circuit;
         if (!element)
-            return [new CircuitFile(circuit_file)];
+            return [new CircuitFile(this.#djs.files.circuit)];
+        const circuit_file = rel_compat1(this.#djs.files.circuit) ?
+                             this.#djs.files.circuit : undefined;
         console.assert(element instanceof CircuitFile);
         let res = [];
         for (let file of this.#djs.files.sources.values())

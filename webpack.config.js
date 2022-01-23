@@ -11,7 +11,7 @@ function main_view_config(env, argv) {
     const devMode = argv.mode !== "production";
     return {
         name: 'main-view',
-        entry: "./view/main.js",
+        entry: "./view/main.mjs",
         output: {
             path: path.join(__dirname, outputDirectory),
             filename: "view-bundle.js"

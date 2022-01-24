@@ -11,7 +11,7 @@ import { SourceMap } from './source_map.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { hash_sha512, rel_compat1, rel_compat2, read_txt_file } from './utils.mjs';
+import { hash_sha512, rel_compat1, rel_compat2, read_txt_file, write_txt_file } from './utils.mjs';
 
 export function activate(context) {
     new DigitalJS(context);
@@ -425,7 +425,7 @@ class DigitalJS {
         console.assert(this.files.circuit);
         const json = this.#toJSON();
         const str = JSON.stringify(json);
-        await vscode.workspace.fs.writeFile(this.files.circuit, new TextEncoder().encode(str));
+        await write_txt_file(this.files.circuit, str);
         this.dirty = false;
         this.context.workspaceState.update('digitaljs.dirty', false);
     }

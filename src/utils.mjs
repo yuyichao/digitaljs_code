@@ -23,3 +23,7 @@ export function rel_compat2(uri1, uri2) {
 export async function read_txt_file(uri) {
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
 }
+
+export async function write_txt_file(uri, str) {
+    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(str));
+}

@@ -28,11 +28,15 @@ export class StatusProvider {
                     return;
             }
         });
-        this.#djs.tickUpdated(async (tick) => {
+        const tick_listener = this.#djs.tickUpdated(async (tick) => {
             queue.post({ command: 'tick', tick });
         });
-        this.#djs.iopanelMessage(async (message) => {
+        const iopanel_listener = this.#djs.iopanelMessage(async (message) => {
             queue.post(message);
+        });
+        view.onDidDispose(() => {
+            tick_listener.dispose();
+            iopanel_listener.dispose();
         });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">

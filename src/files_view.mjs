@@ -42,19 +42,23 @@ class SourceFile extends vscode.TreeItem {
 export class FilesView {
     #djs
     #onDidChangeTreeData
+    #sourcesUpdateListener
     constructor(djs) {
         this.#djs = djs;
         this.#onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.#onDidChangeTreeData.event;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
-        djs.sourcesUpdated(() => {
+        this.#sourcesUpdateListener = djs.sourcesUpdated(() => {
             vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
                                            djs.scriptRunning);
             vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
                                            djs.scriptNotRunning);
             this.#onDidChangeTreeData.fire();
         });
+    }
+    dispose() {
+        this.#sourcesUpdateListener.dispose();
     }
 
     getTreeItem(element) {

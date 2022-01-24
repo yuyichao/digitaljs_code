@@ -28,6 +28,7 @@ class DigitalJS {
     #iopanelViewIndices
     #synthOptionUpdated
     #circuitView
+    #filesView
     #editor_markers = {}
     constructor(context) {
         this.context = context;
@@ -146,8 +147,9 @@ class DigitalJS {
                                                       new StatusProvider(this),
                                                       { webviewOptions: {
                                                           retainContextWhenHidden: true }}));
+        this.#filesView = new FilesView(this);
         context.subscriptions.push(
-            vscode.window.registerTreeDataProvider('digitaljs-proj-files', new FilesView(this)));
+            vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.#filesView));
 
         context.subscriptions.push(this);
 
@@ -178,6 +180,7 @@ class DigitalJS {
     }
     dispose() {
         this.#document.dispose();
+        this.#filesView.dispose();
     }
     #showCircuit(pause) {
         this.#tickUpdated.fire(this.#document.tick);

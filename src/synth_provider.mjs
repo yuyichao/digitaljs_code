@@ -33,8 +33,11 @@ export class SynthProvider {
             queue.release();
             this.#processCommand(msg, view.webview, context);
         });
-        this.#djs.synthOptionUpdated(() => {
+        const option_listener = this.#djs.synthOptionUpdated(() => {
             queue.post({ command: "update-options", options: this.#djs.synth_options });
+        });
+        view.onDidDispose(() => {
+            option_listener.dispose();
         });
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">

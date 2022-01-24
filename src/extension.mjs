@@ -6,8 +6,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { set_yosys_wasm_uri } from './requests.mjs';
 import { CircuitView } from './circuit_view.mjs';
+import { Document } from './document.mjs';
 import { FilesView } from './files_view.mjs';
-import { Sources } from './sources.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
@@ -20,22 +20,15 @@ export function activate(context) {
 export function deactivate() {
 }
 
-const default_synth_options = {
-    opt: false,
-    transform: true,
-    // lint: true,
-    fsm: 'no', // (no)/yes/nomap
-    fsmexpand: false
-};
-
-
 class DigitalJS {
+    #document
     #tickUpdated
+    #sourcesUpdated
     #iopanelMessage
     #iopanelViewIndices
-    #circuitChanged
+    #synthOptionUpdated
     #circuitView
-    #synth_result
+    #editor_markers = {}
     constructor(context) {
         this.context = context;
 
@@ -58,22 +51,35 @@ class DigitalJS {
         this.iopanelViews = [];
         this.#iopanelViewIndices = {};
 
-        this.sources = new Sources();
-
+        this.#document = new Document(undefined, {});
+        this.#document.sourcesUpdated(() => {
+            this.#sourcesUpdated.fire();
+        });
+        this.#document.synthOptionUpdated(() => {
+            this.#synthOptionUpdated.fire();
+        });
+        this.#document.circuitUpdated(() => {
+            this.#processMarker({});
+            this.#showCircuit();
+            this.#circuitView.reveal();
+        });
+        this.#document.tickUpdated((tick) => {
+            this.#tickUpdated.fire(tick);
+        })
+        this.#document.showMarker((editor_markers) => {
+            this.#processMarker(editor_markers);
+        });
         this.dirty = false;
-        this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
-        this.tick = 0;
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
-        this.extra_data = {};
-        this.synth_options = { ...default_synth_options };
+        this.#sourcesUpdated = new vscode.EventEmitter();
+        this.sourcesUpdated = this.#sourcesUpdated.event;
 
         this.#iopanelMessage = new vscode.EventEmitter();
         this.iopanelMessage = this.#iopanelMessage.event;
-        this.#circuitChanged = new vscode.EventEmitter();
-        this.circuitChanged = this.#circuitChanged.event;
+        this.#synthOptionUpdated = new vscode.EventEmitter();
+        this.synthOptionUpdated = this.#synthOptionUpdated.event;
 
-        this.highlightedEditors = [];
         this.highlightDecoType = vscode.window.createTextEditorDecorationType({
             backgroundColor: new vscode.ThemeColor('peekViewEditor.matchHighlightBackground'),
             borderColor: new vscode.ThemeColor('peekViewEditor.matchHighlightBorder')
@@ -146,40 +152,45 @@ class DigitalJS {
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
     }
-    dispose() {
-        this.sources.dispose();
+    get tick() {
+        return this.#document.tick;
     }
-    #setTick(tick) {
-        this.tick = tick;
-        this.#tickUpdated.fire(tick);
+    get synth_options() {
+        return this.#document.synth_options;
+    }
+    get scriptRunning() {
+        return this.#document.sources.scriptRunning;
+    }
+    get scriptNotRunning() {
+        return this.#document.sources.scriptNotRunning;
+    }
+    get doc_uri() {
+        return this.#document.uri;
+    }
+    get doc_dir_uri() {
+        return this.#document.sources.doc_dir_uri;
+    }
+    get sources_entries() {
+        return this.#document.sources.entries();
+    }
+    dispose() {
+        this.#document.dispose();
     }
     #showCircuit(pause) {
-        this.#setTick(0);
+        this.#tickUpdated.fire(this.#document.tick);
         this.postPanelMessage({
             command: 'showcircuit',
-            circuit: this.#synth_result,
+            circuit: this.#document.circuit,
             opts: { pause }
         });
     }
     async doSynth() {
-        this.#clearMarker();
-        // Load a snapshot of the options up front
-        const res = await this.sources.doSynth({
-            optimize: this.synth_options.opt,
-            fsm: this.synth_options.fsm == "no" ? "" : this.synth_options.fsm,
-            fsmexpand: this.synth_options.fsmexpand,
-            lint: false,
-            transform: this.synth_options.transform,
-        });
-        if (!res)
-            return;
-        this.#synth_result = res.output;
-        this.dirty = true;
-        this.#showCircuit();
-        this.#circuitView.reveal();
+        if (await this.#document.doSynth()) {
+            this.dirty = true;
+        }
     }
     updateOptions(options) {
-        this.synth_options = { ...options };
+        this.#document.synth_options = options;
     }
     #pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
@@ -196,65 +207,16 @@ class DigitalJS {
     #nextEventSim() {
         this.postPanelMessage({ command: 'nexteventsim' });
     }
-    #toJSON() {
-        const [sources, has_fullpath] = this.sources.toSave();
-        if (has_fullpath)
-            vscode.window.showWarningMessage(`Saved project contains full path to source file.`);
-        return {
-            sources: sources,
-            options: this.synth_options,
-            ...this.#synth_result,
-            ...this.extra_data
-        };
-    }
-    #load_sources(doc_uri, data) {
-        if (data.sources) {
-            this.sources.load(doc_uri, data.sources);
-            return;
-        }
-        if (data.source_map) {
-            const sources = [];
-            for (const name in data.source_map)
-                sources.push({ ...data.source_map[name], name });
-            this.sources.load(doc_uri, sources);
-        }
-        if (data.files) {
-            for (const file of data.files) {
-                this.sources.addSource(vscode.Uri.joinPath(doc_uri, '..', file));
-            }
-        }
+    #processMarker(editor_markers) {
+        for (const edit_info of Object.values(this.#editor_markers))
+            edit_info.editor.setDecorations(this.highlightDecoType, []);
+        for (const edit_info of Object.values(editor_markers))
+            edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
+        this.#editor_markers = editor_markers;
     }
     #loadJSON(json, uri) {
-        this.#load_sources(uri, json);
-        delete json.files;
-        delete json.source_map;
-        delete json.sources;
-
-        this.dirty = false;
-        if ('options' in json) {
-            this.synth_options = json.options;
-            delete json.options;
-        }
-        else {
-            this.synth_options = { ...default_synth_options };
-        }
-        this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
-        for (const fld of ['devices', 'connectors', 'subcircuits']) {
-            const v = json[fld];
-            if (v)
-                this.#synth_result[fld] = v;
-            delete json[fld];
-        }
-        this.extra_data = json;
-        this.sources.refresh();
-        this.#circuitChanged.fire();
-        this.#showCircuit();
-    }
-    async #saveJSONToFile() {
-        console.assert(this.sources.doc_uri);
-        const json = this.#toJSON();
-        const str = JSON.stringify(json);
-        await write_txt_file(this.sources.doc_uri, str);
+        this.#document.sources.doc_uri = uri;
+        this.#document.revert(json);
         this.dirty = false;
     }
     async #confirmUnsavedJSON() {
@@ -331,21 +293,13 @@ class DigitalJS {
         });
         if (!files)
             return;
-        for (const file of files)
-            this.sources.addSource(file);
-        this.sources.refresh();
+        this.#document.addSources(files);
         this.dirty = true;
     }
-    async #saveJSON() {
-        if (!this.sources.doc_uri)
+    #saveJSON() {
+        if (!this.#document.uri)
             return this.#saveAsJSON();
-        try {
-            await this.#saveJSONToFile();
-        }
-        catch (e) {
-            return vscode.window.showErrorMessage(`Saving to ${this.sources.doc_uri} failed: ${e}`);
-        }
-        return vscode.window.showInformationMessage(`Circuit saved to ${this.sources.doc_uri}`);
+        return this.#document.save();
     }
     async #saveAsJSON() {
         const files = await vscode.window.showOpenDialog({
@@ -355,21 +309,10 @@ class DigitalJS {
         });
         if (!files)
             return;
-        const file = files[0];
-        const origin_doc = this.sources.doc_uri;
-        this.sources.doc_uri = file;
-        try {
-            await this.#saveJSONToFile();
-        }
-        catch (e) {
-            this.sources.doc_uri = origin_doc;
-            return vscode.window.showErrorMessage(`Saving as ${file} failed: ${e}`);
-        }
-        this.sources.refresh();
+        return this.#document.saveAs(files[0]);
     }
     #removeSource(item) {
-        this.sources.deleteSource(item.resourceUri);
-        this.sources.refresh();
+        this.#document.removeSource(item.resourceUri);
         this.dirty = true;
     }
     async #startScript(item) {
@@ -396,40 +339,6 @@ class DigitalJS {
             name: item.resourceUri.toString()
         });
     }
-    #showMarker(markers) {
-        const editor_map = {};
-        const getEditorInfo = (name) => {
-            let edit_info = editor_map[name];
-            if (edit_info)
-                return edit_info;
-            const src_info = this.sources.findByName(name);
-            if (!src_info)
-                return;
-            const editor = src_info.findEditor();
-            if (!editor)
-                return;
-            this.highlightedEditors.push(editor);
-            edit_info = { editor, markers: [] };
-            editor_map[name] = edit_info;
-            return edit_info;
-        };
-        for (const marker of markers) {
-            const edit_info = getEditorInfo(marker.name);
-            if (!edit_info)
-                continue;
-            edit_info.markers.push(new vscode.Range(marker.from_line, marker.from_col,
-                                                    marker.to_line, marker.to_col));
-        }
-        for (const name in editor_map) {
-            const edit_info = editor_map[name];
-            edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
-        }
-    }
-    #clearMarker() {
-        for (const editor of this.highlightedEditors)
-            editor.setDecorations(this.highlightDecoType, []);
-        this.highlightedEditors.length = 0;
-    }
     postPanelMessage(msg) {
         if (!this.#circuitView)
             return;
@@ -442,11 +351,11 @@ class DigitalJS {
         }
         switch (message.command) {
             case 'updatecircuit':
-                this.#synth_result = message.circuit;
+                this.#document.updateCircuit(message);
                 this.dirty = true;
                 return;
             case 'tick':
-                this.#setTick(message.tick);
+                this.#document.tick = message.tick;
                 return;
             case 'runstate':
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
@@ -457,31 +366,31 @@ class DigitalJS {
                                                message.hasPendingEvents);
                 return;
             case 'luastarted':
-                this.sources.scriptStarted(message.name);
+                this.#document.sources.scriptStarted(message.name);
                 return;
             case 'luastop':
-                this.sources.scriptStopped(message.name);
+                this.#document.sources.scriptStopped(message.name);
                 return;
             case 'luaerror': {
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.sources.doc_dir_uri, uri))
-                    name = path.relative(this.sources.doc_dir_uri.path, uri.path);
+                if (rel_compat2(this.#document.sources.doc_dir_uri, uri))
+                    name = path.relative(this.#document.sources.doc_dir_uri.path, uri.path);
                 vscode.window.showErrorMessage(`${name}: ${message.message}`);
                 return;
             }
             case 'luaprint': {
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.sources.doc_dir_uri, uri))
-                    name = path.relative(this.sources.doc_dir_uri.path, uri.path);
+                if (rel_compat2(this.#document.sources.doc_dir_uri, uri))
+                    name = path.relative(this.#document.sources.doc_dir_uri.path, uri.path);
                 vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
                 return;
             }
             case 'showmarker':
-                return this.#showMarker(message.markers);
+                return this.#document.processMarker(message.markers);
             case 'clearmarker':
-                return this.#clearMarker();
+                return this.#document.clearMarker();
         }
     }
     #processIOPanelMessage(message) {
@@ -510,8 +419,7 @@ class DigitalJS {
     }
     async #openViewSource(item) {
         await this.#createOrShowView(true);
-        this.sources.addSource(uri);
-        this.sources.refresh();
+        this.#document.addSources([item.resourceUri]);
         this.dirty = true;
     }
     async #openView() {
@@ -537,8 +445,7 @@ class DigitalJS {
                 `Add ${uri.path} to current circuit?`, 'Yes', 'No');
             if (res != 'Yes')
                 return;
-            this.sources.addSource(uri);
-            this.sources.refresh();
+            this.#document.addSources(uri);
             this.dirty = true;
             return;
         }
@@ -562,11 +469,9 @@ class DigitalJS {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             this.#circuitView = undefined;
             this.dirty = false;
-            this.#synth_result = { devices: {}, connectors: [], subcircuits: {} };
-            this.sources.dispose();
-            this.sources = new Sources();
-            this.extra_data = {};
-            this.#clearMarker();
+            this.#processMarker({});
+            this.#document.sources.doc_uri = undefined;
+            this.#document.revert({});
         });
         this.#circuitView.onDidChangeViewState((e) => {
             const panel = e.webviewPanel;

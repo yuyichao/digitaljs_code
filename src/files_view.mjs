@@ -48,11 +48,11 @@ export class FilesView {
         this.onDidChangeTreeData = this.#onDidChangeTreeData.event;
         vscode.commands.executeCommand('setContext', 'digitaljs.script_running', []);
         vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running', []);
-        djs.sources.onChanged(() => {
+        djs.sourcesUpdated(() => {
             vscode.commands.executeCommand('setContext', 'digitaljs.script_running',
-                                           djs.sources.scriptRunning);
+                                           djs.scriptRunning);
             vscode.commands.executeCommand('setContext', 'digitaljs.script_not_running',
-                                           djs.sources.scriptNotRunning);
+                                           djs.scriptNotRunning);
             this.#onDidChangeTreeData.fire();
         });
     }
@@ -62,11 +62,11 @@ export class FilesView {
     }
     async getChildren(element) {
         if (!element)
-            return [new CircuitFile(this.#djs.sources.doc_uri)];
-        const doc_dir = this.#djs.sources.doc_dir_uri;
+            return [new CircuitFile(this.#djs.doc_uri)];
+        const doc_dir = this.#djs.doc_dir_uri;
         console.assert(element instanceof CircuitFile);
         let res = [];
-        for (let [uri_str, info] of this.#djs.sources.entries()) {
+        for (let [uri_str, info] of this.#djs.sources_entries) {
             if (info.deleted)
                 continue;
             res.push(new SourceFile(doc_dir, info.uri));

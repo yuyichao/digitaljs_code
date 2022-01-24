@@ -7,7 +7,7 @@ import * as path from 'path';
 import _ from 'lodash';
 import { run_yosys } from './requests.mjs';
 import { Sources } from './sources.mjs';
-import { write_txt_file } from './utils.mjs';
+import { rel_compat2, write_txt_file } from './utils.mjs';
 
 const default_synth_options = {
     opt: false,
@@ -22,7 +22,11 @@ export class Document {
     #extra_data = {}
     #synth_options = { ...default_synth_options }
     #circuit = { devices: {}, connectors: [], subcircuits: {} }
+
     #tick = 0
+    #iopanelViews = []
+    #iopanelViewIndices = {}
+    #runStates = { hascircuit: false, running: false, pendingEvents: false }
 
     // Events
     sourcesUpdated // fired for all updates
@@ -37,6 +41,10 @@ export class Document {
     #tickUpdated
     showMarker
     #showMarker
+    iopanelMessage
+    #iopanelMessage
+    runStatesUpdated
+    #runStatesUpdated
     constructor(doc_uri, data) {
         this.#sources = new Sources();
         this.sourcesUpdated = this.#sources.onChanged;
@@ -52,6 +60,10 @@ export class Document {
         this.tickUpdated = this.#tickUpdated.event;
         this.#showMarker = new vscode.EventEmitter();
         this.showMarker = this.#showMarker.event;
+        this.#iopanelMessage = new vscode.EventEmitter();
+        this.iopanelMessage = this.#iopanelMessage.event;
+        this.#runStatesUpdated = new vscode.EventEmitter();
+        this.runStatesUpdated = this.#runStatesUpdated.event;
     }
     dispose() {
         this.#sources.dispose();
@@ -87,6 +99,12 @@ export class Document {
     }
     get circuit() {
         return this.#circuit;
+    }
+    get iopanelViews() {
+        return this.#iopanelViews;
+    }
+    get runStates() {
+        return this.#runStates;
     }
 
     // Loading and saving
@@ -174,7 +192,7 @@ export class Document {
     async revert(data) {
         this.#load(this.#sources.doc_uri, data);
         this.tick = 0;
-        this.clearMarker();
+        this.#clearMarker();
         this.#sources.refresh();
         this.#circuitUpdated.fire(this.#circuit);
         this.#synthOptionUpdated.fire();
@@ -258,7 +276,7 @@ export class Document {
         this.#circuitUpdated.fire(res.output);
         return true;
     }
-    processMarker(markers) {
+    #processMarker(markers) {
         const editor_map = {};
         const getEditorInfo = (name) => {
             let edit_info = editor_map[name];
@@ -283,10 +301,10 @@ export class Document {
         }
         this.#showMarker.fire(editor_map);
     }
-    clearMarker() {
+    #clearMarker() {
         this.#showMarker.fire({});
     }
-    updateCircuit(message) {
+    #updateCircuit(message) {
         let label;
         let ele_type = message.ele_type || 'Device';
         if (message.type === 'pos') {
@@ -308,5 +326,71 @@ export class Document {
             label = `Editing ${ele_type}`;
         }
         this.#circuitEdit(message.circuit, label);
+    }
+
+    // Messages
+    #processIOPanelMessage(message) {
+        // Cache the state here for the status view at initialization time.
+        switch (message.command) {
+            case 'iopanel:view': {
+                this.#iopanelViewIndices = {};
+                for (const idx in message.view)
+                    this.#iopanelViewIndices[message.view[idx]] = idx;
+                this.#iopanelViews = message.view;
+            }
+            case 'iopanel:update': {
+                const idx = this.#iopanelViewIndices[message.id];
+                if (idx !== undefined) {
+                    this.#iopanelViews[idx].value = message.value;
+                }
+            }
+        }
+        this.#iopanelMessage.fire(message);
+    }
+    processCommand(message) {
+        if (message.command.startsWith('iopanel:')) {
+            this.#processIOPanelMessage(message);
+            return;
+        }
+        switch (message.command) {
+            case 'updatecircuit':
+                this.#updateCircuit(message);
+                return;
+            case 'tick':
+                this.tick = message.tick;
+                return;
+            case 'runstate':
+                this.#runStates = { hascircuit: message.hascircuit,
+                                    running: message.running,
+                                    pendingEvents: message.hasPendingEvents };
+                this.#runStatesUpdated.fire(this.#runStates);
+                return;
+            case 'luastarted':
+                this.#sources.scriptStarted(message.name);
+                return;
+            case 'luastop':
+                this.#sources.scriptStopped(message.name);
+                return;
+            case 'luaerror': {
+                let name = message.name;
+                let uri = vscode.Uri.parse(name);
+                if (rel_compat2(this.#sources.doc_dir_uri, uri))
+                    name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                vscode.window.showErrorMessage(`${name}: ${message.message}`);
+                return;
+            }
+            case 'luaprint': {
+                let name = message.name;
+                let uri = vscode.Uri.parse(name);
+                if (rel_compat2(this.#sources.doc_dir_uri, uri))
+                    name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
+                return;
+            }
+            case 'showmarker':
+                return this.#processMarker(message.markers);
+            case 'clearmarker':
+                return this.#clearMarker();
+        }
     }
 }

@@ -11,7 +11,7 @@ import { FilesView } from './files_view.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
-import { rel_compat2, read_txt_file, write_txt_file } from './utils.mjs';
+import { read_txt_file, write_txt_file } from './utils.mjs';
 
 export function activate(context) {
     new DigitalJS(context);
@@ -25,7 +25,6 @@ class DigitalJS {
     #tickUpdated
     #sourcesUpdated
     #iopanelMessage
-    #iopanelViewIndices
     #synthOptionUpdated
     #circuitView
     #filesView
@@ -49,9 +48,6 @@ class DigitalJS {
         set_yosys_wasm_uri(vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
                                                "dist", "yosys.wasm"));
 
-        this.iopanelViews = [];
-        this.#iopanelViewIndices = {};
-
         this.#document = new Document(undefined, {});
         this.#document.sourcesUpdated(() => {
             this.#sourcesUpdated.fire();
@@ -72,6 +68,18 @@ class DigitalJS {
         });
         this.#document.documentEdited(() => {
             this.dirty = true;
+        });
+        this.#document.iopanelMessage((message) => {
+            this.#iopanelMessage.fire(message);
+        });
+        this.#document.runStatesUpdated((states) => {
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
+                                           states.hascircuit);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
+                                           states.running);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
+                                           states.pendingEvents);
+
         });
         this.dirty = false;
         this.#tickUpdated = new vscode.EventEmitter();
@@ -177,6 +185,9 @@ class DigitalJS {
     }
     get sources_entries() {
         return this.#document.sources.entries();
+    }
+    get iopanelViews() {
+        return this.#document.iopanelViews;
     }
     dispose() {
         this.#document.dispose();
@@ -347,70 +358,7 @@ class DigitalJS {
         this.#circuitView.post(msg);
     }
     processCommand(message) {
-        if (message.command.startsWith('iopanel:')) {
-            this.#processIOPanelMessage(message);
-            return;
-        }
-        switch (message.command) {
-            case 'updatecircuit':
-                this.#document.updateCircuit(message);
-                return;
-            case 'tick':
-                this.#document.tick = message.tick;
-                return;
-            case 'runstate':
-                vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
-                                               message.hascircuit);
-                vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
-                                               message.running);
-                vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
-                                               message.hasPendingEvents);
-                return;
-            case 'luastarted':
-                this.#document.sources.scriptStarted(message.name);
-                return;
-            case 'luastop':
-                this.#document.sources.scriptStopped(message.name);
-                return;
-            case 'luaerror': {
-                let name = message.name;
-                let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.#document.sources.doc_dir_uri, uri))
-                    name = path.relative(this.#document.sources.doc_dir_uri.path, uri.path);
-                vscode.window.showErrorMessage(`${name}: ${message.message}`);
-                return;
-            }
-            case 'luaprint': {
-                let name = message.name;
-                let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.#document.sources.doc_dir_uri, uri))
-                    name = path.relative(this.#document.sources.doc_dir_uri.path, uri.path);
-                vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
-                return;
-            }
-            case 'showmarker':
-                return this.#document.processMarker(message.markers);
-            case 'clearmarker':
-                return this.#document.clearMarker();
-        }
-    }
-    #processIOPanelMessage(message) {
-        // Cache the state here for the status view at initialization time.
-        switch (message.command) {
-            case 'iopanel:view': {
-                this.#iopanelViewIndices = {};
-                for (const idx in message.view)
-                    this.#iopanelViewIndices[message.view[idx]] = idx;
-                this.iopanelViews = message.view;
-            }
-            case 'iopanel:update': {
-                const idx = this.#iopanelViewIndices[message.id];
-                if (idx !== undefined) {
-                    this.iopanelViews[idx].value = message.value;
-                }
-            }
-        }
-        this.#iopanelMessage.fire(message);
+        this.#document.processCommand(message);
     }
     async #openViewJSON(uri) {
         await this.#createOrShowView(true);

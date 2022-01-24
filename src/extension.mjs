@@ -10,7 +10,6 @@ import { Document } from './document.mjs';
 import { FilesView } from './files_view.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
-import { WebviewMsgQueue } from './webview_msg_queue.mjs';
 import { read_txt_file, write_txt_file } from './utils.mjs';
 
 export function activate(context) {
@@ -57,7 +56,6 @@ class DigitalJS {
         });
         this.#document.circuitUpdated(() => {
             this.#processMarker({});
-            this.#showCircuit();
             this.#circuitView.reveal();
         });
         this.#document.tickUpdated((tick) => {
@@ -192,14 +190,6 @@ class DigitalJS {
     dispose() {
         this.#document.dispose();
         this.#filesView.dispose();
-    }
-    #showCircuit(pause) {
-        this.#tickUpdated.fire(this.#document.tick);
-        this.postPanelMessage({
-            command: 'showcircuit',
-            circuit: this.#document.circuit,
-            opts: { pause }
-        });
     }
     async doSynth() {
         await this.#document.doSynth();
@@ -357,9 +347,6 @@ class DigitalJS {
             return;
         this.#circuitView.post(msg);
     }
-    processCommand(message) {
-        this.#document.processCommand(message);
-    }
     async #openViewJSON(uri) {
         await this.#createOrShowView(true);
         if (!(await this.#confirmUnsavedJSON()))
@@ -408,7 +395,20 @@ class DigitalJS {
         column = column || vscode.ViewColumn.One;
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
-        this.#circuitView = new CircuitView(this, focus, column);
+        this.#circuitView = new CircuitView(this, vscode.window.createWebviewPanel(
+            'digitaljs-mainview',
+            'DigitalJS',
+            {
+                // The view is still brought to the front
+                // even with preserveFocus set to true...
+                preserveFocus: !focus,
+                viewColumn: column
+            },
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        ), this.#document);
         this.#circuitView.onDidDispose(() => {
             // TODO: would be nice if we can try to save here
             // and maybe confirm if the user actually wants to close?

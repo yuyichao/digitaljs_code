@@ -7,32 +7,35 @@ import { WebviewMsgQueue } from './webview_msg_queue.mjs';
 
 export class CircuitView {
     #panel
+    #document
     #queue
-    constructor(djs, focus, column) {
-        this.#panel = vscode.window.createWebviewPanel(
-            'digitaljs-mainview',
-            'DigitalJS',
-            {
-                // The view is still brought to the front
-                // even with preserveFocus set to true...
-                preserveFocus: !focus,
-                viewColumn: column
-            },
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true
-            }
-        );
+    constructor(djs, panel, document) {
+        this.#panel = panel;
+        this.#document = document;
         this.#queue = new WebviewMsgQueue(this.#panel.webview);
         this.#panel.iconPath = djs.iconPath;
         this.onDidDispose = this.#panel.onDidDispose;
         this.onDidChangeViewState = this.#panel.onDidChangeViewState;
         this.#panel.webview.onDidReceiveMessage((msg) => {
             this.#queue.release();
-            djs.processCommand(msg);
+            this.#document.processCommand(msg);
+        });
+        let circuit_listener = this.#document.circuitUpdated(() => {
+            this.#showCircuit();
         });
         this.#getViewContent(djs, this.#panel.webview).then(content => {
             this.#panel.webview.html = content;
+            this.#showCircuit(true);
+        });
+        this.onDidDispose(() => {
+            circuit_listener.dispose();
+        });
+    }
+    #showCircuit(pause) {
+        this.post({
+            command: 'showcircuit',
+            circuit: this.#document.circuit,
+            opts: { pause }
         });
     }
     async #getViewContent(djs, webview) {

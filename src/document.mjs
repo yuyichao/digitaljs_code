@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import _ from 'lodash';
 import { run_yosys } from './requests.mjs';
 import { Sources } from './sources.mjs';
 import { write_txt_file } from './utils.mjs';
@@ -29,6 +30,8 @@ export class Document {
     #synthOptionUpdated // not fired for updates from synthesis panel
     circuitUpdated
     #circuitUpdated // not fired for updates from main circuit views
+    documentEdited
+    #documentEdited
 
     tickUpdated // from circuit view to other view
     #tickUpdated
@@ -42,6 +45,8 @@ export class Document {
         this.synthOptionUpdated = this.#synthOptionUpdated.event;
         this.#circuitUpdated = new vscode.EventEmitter();
         this.circuitUpdated = this.#circuitUpdated.event;
+        this.#documentEdited = new vscode.EventEmitter();
+        this.documentEdited = this.#documentEdited.event;
 
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
@@ -72,8 +77,13 @@ export class Document {
         return this.#synth_options;
     }
     set synth_options(synth_options) {
-        // TODO create edit.
+        const before = this.#synth_options;
         this.#synth_options = { ...synth_options };
+        const after = this.#synth_options;
+        this.#createEdit(before, after, 'Update options', (options) => {
+            this.#synth_options = { ...options };
+            this.#synthOptionUpdated.fire();
+        });
     }
     get circuit() {
         return this.#circuit;
@@ -185,17 +195,52 @@ export class Document {
         };
     }
 
+    // Edits
+    #createEdit(before, after, label, cb) {
+        if (_.isEqual(before, after))
+            return;
+        this.#documentEdited.fire({
+            document: this,
+            label: label,
+            redo: () => {
+                cb(after);
+            },
+            undo: () => {
+                cb(before);
+            },
+        });
+    }
+
     // Actions
+    #sourceEdit(cb, label) {
+        const before = this.#sources.toBackup();
+        cb();
+        const after = this.#sources.toBackup();
+        this.#createEdit(before, after, label, (sources) => {
+            this.#sources.load(this.#sources.doc_uri, sources);
+            this.#sources.refresh();
+        });
+    }
     addSources(files) {
-        // TODO create edit.
-        for (const file of files)
-            this.#sources.addSource(file);
-        this.#sources.refresh();
+        this.#sourceEdit(() => {
+            for (const file of files)
+                this.#sources.addSource(file);
+            this.#sources.refresh();
+        }, 'Add source');
     }
     removeSource(file) {
-        // TODO create edit.
-        this.#sources.deleteSource(file);
-        this.#sources.refresh();
+        this.#sourceEdit(() => {
+            this.#sources.deleteSource(file);
+            this.#sources.refresh();
+        }, 'Remove source');
+    }
+    #circuitEdit(after, label) {
+        const before = this.#circuit;
+        this.#circuit = after;
+        this.#createEdit(before, after, label, (circuit) => {
+            this.#circuit = circuit;
+            this.#circuitUpdated.fire(circuit);
+        });
     }
     async doSynth() {
         // Load a snapshot of the options up front
@@ -208,8 +253,7 @@ export class Document {
         });
         if (!res)
             return;
-        // TODO create edit.
-        this.#circuit = res.output;
+        this.#circuitEdit(res.output, 'Synthesis');
         this.tick = 0;
         this.#circuitUpdated.fire(res.output);
         return true;
@@ -243,7 +287,26 @@ export class Document {
         this.#showMarker.fire({});
     }
     updateCircuit(message) {
-        // TODO create edit.
-        this.#circuit = message.circuit;
+        let label;
+        let ele_type = message.ele_type || 'Device';
+        if (message.type === 'pos') {
+            label = `Moving ${ele_type}`;
+        }
+        else if (message.type === 'vert') {
+            label = `Deforming ${ele_type}`;
+        }
+        else if (message.type === 'src' || message.type === 'tgt') {
+            label = `Reconnecting ${ele_type}`;
+        }
+        else if (message.type === 'add') {
+            label = `Adding ${ele_type}`;
+        }
+        else if (message.type === 'rm') {
+            label = `Removing ${ele_type}`;
+        }
+        else {
+            label = `Editing ${ele_type}`;
+        }
+        this.#circuitEdit(message.circuit, label);
     }
 }

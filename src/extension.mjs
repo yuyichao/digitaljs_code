@@ -69,6 +69,9 @@ class DigitalJS {
         this.#document.showMarker((editor_markers) => {
             this.#processMarker(editor_markers);
         });
+        this.#document.documentEdited(() => {
+            this.dirty = true;
+        });
         this.dirty = false;
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
@@ -185,9 +188,7 @@ class DigitalJS {
         });
     }
     async doSynth() {
-        if (await this.#document.doSynth()) {
-            this.dirty = true;
-        }
+        await this.#document.doSynth();
     }
     updateOptions(options) {
         this.#document.synth_options = options;
@@ -294,7 +295,6 @@ class DigitalJS {
         if (!files)
             return;
         this.#document.addSources(files);
-        this.dirty = true;
     }
     #saveJSON() {
         if (!this.#document.uri)
@@ -313,7 +313,6 @@ class DigitalJS {
     }
     #removeSource(item) {
         this.#document.removeSource(item.resourceUri);
-        this.dirty = true;
     }
     async #startScript(item) {
         const uri = item.resourceUri;
@@ -352,7 +351,6 @@ class DigitalJS {
         switch (message.command) {
             case 'updatecircuit':
                 this.#document.updateCircuit(message);
-                this.dirty = true;
                 return;
             case 'tick':
                 this.#document.tick = message.tick;
@@ -420,7 +418,6 @@ class DigitalJS {
     async #openViewSource(item) {
         await this.#createOrShowView(true);
         this.#document.addSources([item.resourceUri]);
-        this.dirty = true;
     }
     async #openView() {
         const active_editor = vscode.window.activeTextEditor;
@@ -446,7 +443,6 @@ class DigitalJS {
             if (res != 'Yes')
                 return;
             this.#document.addSources(uri);
-            this.dirty = true;
             return;
         }
     }
@@ -468,10 +464,10 @@ class DigitalJS {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             this.#circuitView = undefined;
-            this.dirty = false;
             this.#processMarker({});
             this.#document.sources.doc_uri = undefined;
             this.#document.revert({});
+            this.dirty = false;
         });
         this.#circuitView.onDidChangeViewState((e) => {
             const panel = e.webviewPanel;

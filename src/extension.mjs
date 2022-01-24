@@ -32,6 +32,7 @@ const default_synth_options = {
 class DigitalJS {
     #tickUpdated
     #iopanelMessage
+    #iopanelViewIndices
     #circuitChanged
     #circuitView
     #source_map
@@ -56,7 +57,7 @@ class DigitalJS {
                                                "dist", "yosys.wasm"));
 
         this.iopanelViews = [];
-        this.iopanelViewIndices = {};
+        this.#iopanelViewIndices = {};
 
         this.files = new FilesMgr();
         this.dirty = false;
@@ -667,13 +668,13 @@ class DigitalJS {
         // Cache the state here for the status view at initialization time.
         switch (message.command) {
             case 'iopanel:view': {
-                this.iopanelViewIndices = {};
+                this.#iopanelViewIndices = {};
                 for (const idx in message.view)
-                    this.iopanelViewIndices[message.view[idx]] = idx;
+                    this.#iopanelViewIndices[message.view[idx]] = idx;
                 this.iopanelViews = message.view;
             }
             case 'iopanel:update': {
-                const idx = this.iopanelViewIndices[message.id];
+                const idx = this.#iopanelViewIndices[message.id];
                 if (idx !== undefined) {
                     this.iopanelViews[idx].value = message.value;
                 }

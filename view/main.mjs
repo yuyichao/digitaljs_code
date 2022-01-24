@@ -99,17 +99,42 @@ class LuaRunner {
     }
 }
 
+class ChangeTracker {
+    #timer
+    #info
+    get info() {
+        return this.#info;
+    }
+    clear() {
+        if (this.#timer)
+            clearTimeout(this.#timer);
+        this.#timer = undefined;
+        this.#info = undefined;
+    }
+    queue(timeout, info, cb) {
+        if (this.#timer)
+            clearTimeout(this.#timer);
+        this.#info = info;
+        this.#timer = setTimeout(() => {
+            this.#timer = undefined;
+            this.#info = undefined;
+            cb();
+        }, timeout);
+    }
+}
+
 class DigitalJS {
-    #circuit_dirty = false;
     #iopanel
     #monitor
     #monitormem
     #monitorview
     #paper
     #lua
+    #change_tracker
     constructor() {
         this.circuit = undefined;
         this.#lua = new LuaRunner(this);
+        this.#change_tracker = new ChangeTracker();
         window.addEventListener('message', event => {
             this.#processMessage(event.data);
         });
@@ -140,11 +165,6 @@ class DigitalJS {
             case 'showcircuit':
                 this.#mkCircuit(message.circuit, message.opts);
                 return;
-            case 'savecircuit':
-                this.#circuit_dirty = false;
-                vscode.postMessage({ command: "updatecircuit",
-                                     circuit: this.circuit.toJSON() });
-                return;
             case 'pausesim':
                 this.#pauseSim();
                 return;
@@ -166,12 +186,6 @@ class DigitalJS {
             case 'stoplua':
                 this.#lua.stop(message.name);
                 return;
-        }
-    }
-    #dirtyCircuit() {
-        if (!this.#circuit_dirty) {
-            this.#circuit_dirty = true;
-            vscode.postMessage({ command: "circuitchanged" });
         }
     }
 
@@ -198,6 +212,42 @@ class DigitalJS {
             vscode.postMessage({ command: "clearmarker" });
         });
     }
+    #queueCallback(ele, evt_type) {
+        const cid = ele.cid;
+        const attr = ele.attributes;
+        const ele_type = attr ? attr.type : undefined;
+        const info = { type: evt_type, cid, ele_type: ele_type };
+        // This is a long timeout but this should be fine since we rely on the
+        // batch:stop event to mark the end of an edit.
+        // The timeout here should only be triggerred if the user pauses
+        // in the middle of a drag for a long time.
+        this.#change_tracker.queue(3000, info, () => {
+            // If this is a wire and at least one of the end isn't connected, try again later.
+            const attr = ele.attributes;
+            if (attr && ele_type === 'Wire' && (!attr.source.id || !attr.target.id))
+                return this.#queueCallback(ele, evt_type);
+            vscode.postMessage({ command: "updatecircuit",
+                                 circuit: this.circuit.toJSON(), type: evt_type, ele_type });
+        });
+    }
+    #checkAndQueueChange(ele, evt_type) {
+        const cid = ele.cid;
+        const old_info = this.#change_tracker.info;
+        if (old_info && (old_info.type !== evt_type || old_info.cid !== cid)) {
+            // If this has just been added,
+            // keep marking it as add in case it was deleted immediately after.
+            if (old_info.type == 'add' && old_info.cid == cid)
+                return this.#queueCallback(ele, 'add');
+            // Different change compared to the last one, save previous value.
+            const attr = ele.attributes;
+            ele.attributes = ele._previousAttributes;
+            const circuit = this.circuit.toJSON();
+            ele.attributes = attr;
+            vscode.postMessage({ command: "updatecircuit", circuit,
+                                 type: old_info.type, ele_type: old_info.ele_type });
+        }
+        this.#queueCallback(ele, evt_type);
+    }
     #mkCircuit(data, opts) {
         this.#destroyCircuit();
         if (circuit_empty(data))
@@ -208,18 +258,78 @@ class DigitalJS {
             engineOptions: { workerURL: window.simWorkerUri }
         };
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
-        this.circuit.listenTo(this.circuit._graph, 'change:position', () => {
-            this.#dirtyCircuit();
+        this.circuit.listenTo(this.circuit._graph, 'change:position', (ele) => {
+            this.#checkAndQueueChange(ele, 'pos');
         });
-        this.circuit.listenTo(this.circuit._graph, 'change:vertices', () => {
-            this.#dirtyCircuit();
+        this.circuit.listenTo(this.circuit._graph, 'change:vertices', (ele) => {
+            this.#checkAndQueueChange(ele, 'vert');
         });
-        this.circuit.listenTo(this.circuit._graph, 'add', () => {
-            this.#dirtyCircuit();
+        this.circuit.listenTo(this.circuit._graph, 'change:source', (ele) => {
+            this.#checkAndQueueChange(ele, 'src');
         });
-        this.circuit.listenTo(this.circuit._graph, 'remove', () => {
-            this.#dirtyCircuit();
+        this.circuit.listenTo(this.circuit._graph, 'change:target', (ele) => {
+            this.#checkAndQueueChange(ele, 'tgt');
         });
+        this.circuit.listenTo(this.circuit._graph, 'add', (ele, cells) => {
+            const evt_type = 'add';
+            const old_info = this.#change_tracker.info;
+            if (old_info) {
+                // An add is always a new event, take a snapshot of the old value
+                const tmp_cells = cells.clone();
+                tmp_cells.remove(ele);
+                cells.graph.attributes.cells = tmp_cells;
+                const circuit = this.circuit.toJSON();
+                cells.graph.attributes.cells = cells;
+                vscode.postMessage({ command: "updatecircuit", circuit,
+                                     type: old_info.type, ele_type: old_info.ele_type });
+            }
+            this.#queueCallback(ele, evt_type);
+        });
+        this.circuit.listenTo(this.circuit._graph, 'remove', (ele, cells) => {
+            const cid = ele.cid;
+            const evt_type = 'rm';
+            const old_info = this.#change_tracker.info;
+            // A remove is never going to be merged with the next event.
+            this.#change_tracker.clear();
+            // If this is the one we are adding, ignore it
+            if (old_info) {
+                if (old_info.type == 'add' && old_info.cid == cid)
+                    return;
+                // If there's anything else that was in progress, generate a version for that.
+                const tmp_cells = cells.clone();
+                tmp_cells.add(ele);
+                cells.graph.attributes.cells = tmp_cells;
+                const circuit = this.circuit.toJSON();
+                cells.graph.attributes.cells = cells;
+                vscode.postMessage({ command: "updatecircuit", circuit,
+                                     type: old_info.type, ele_type: old_info.ele_type });
+            }
+            const attr = ele.attributes;
+            const ele_type = attr ? attr.type : undefined;
+            vscode.postMessage({ command: "updatecircuit", circuit: this.circuit.toJSON(),
+                                 type: evt_type, ele_type });
+        });
+        this.circuit.listenTo(this.circuit._graph, 'batch:stop', (data) => {
+            const batch_name = data.batchName;
+            // These events marks the end of a drag-and-move event
+            // Out of the events that I've observed, we do not want to handle the
+            // translation batch since it fires in the middle of dragging.
+            if (batch_name === 'vertex-move' || batch_name == 'vertex-add' ||
+                batch_name == 'pointer') {
+                // The main case that we need to be careful about is the ordering with the
+                // remove event since it looks at the old info and do different things
+                // depend on if there was an add event of the same element previously.
+                // Fortunately, the remove event fires before the batch stop event
+                // so it'll handle the removal of an just-added wire before we do.
+                const info = this.#change_tracker.info;
+                if (info) {
+                    vscode.postMessage({ command: "updatecircuit",
+                                         circuit: this.circuit.toJSON(),
+                                         type: info.type, ele_type: info.ele_type });
+                    this.#change_tracker.clear();
+                }
+            }
+        })
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });

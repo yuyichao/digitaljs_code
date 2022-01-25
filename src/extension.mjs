@@ -29,8 +29,6 @@ class DigitalJS {
     #filesView
     #editor_markers = {}
     constructor(context) {
-        this.context = context;
-
         // Paths
         const ext_uri = context.extensionUri;
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');

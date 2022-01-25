@@ -9,6 +9,7 @@ export class CircuitView {
     #panel
     #document
     #queue
+    #init
     constructor(djs, panel, document) {
         this.#panel = panel;
         this.#document = document;
@@ -22,14 +23,21 @@ export class CircuitView {
         });
         let circuit_listener = this.#document.circuitUpdated(() => {
             this.#showCircuit();
-        });
-        this.#getViewContent(djs, this.#panel.webview).then(content => {
-            this.#panel.webview.html = content;
-            this.#showCircuit(true);
+            this.reveal();
         });
         this.onDidDispose(() => {
             circuit_listener.dispose();
         });
+        this.#init = this.#getViewContent(djs, this.#panel.webview).then(content => {
+            this.#panel.webview.html = content;
+            this.#showCircuit(true);
+        });
+    }
+    get panel() {
+        return this.#panel;
+    }
+    init() {
+        return this.#init;
     }
     #showCircuit(pause) {
         this.post({

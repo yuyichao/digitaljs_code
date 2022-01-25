@@ -15,7 +15,7 @@ export class SynthProvider {
                 this.#djs.doSynth();
                 return;
             case 'update-options':
-                this.#djs.updateOptions(message.options);
+                this.#djs.synth_options = message.options;
                 return;
         }
     }

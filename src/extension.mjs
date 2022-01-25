@@ -163,11 +163,19 @@ class DigitalJS {
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
     }
+    dispose() {
+        this.#document.dispose();
+        this.#filesView.dispose();
+    }
+
     get tick() {
         return this.#document.tick;
     }
     get synth_options() {
         return this.#document.synth_options;
+    }
+    set synth_options(options) {
+        this.#document.synth_options = options;
     }
     get scriptRunning() {
         return this.#document.sources.scriptRunning;
@@ -187,15 +195,8 @@ class DigitalJS {
     get iopanelViews() {
         return this.#document.iopanelViews;
     }
-    dispose() {
-        this.#document.dispose();
-        this.#filesView.dispose();
-    }
     async doSynth() {
         await this.#document.doSynth();
-    }
-    updateOptions(options) {
-        this.#document.synth_options = options;
     }
     #pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
@@ -219,6 +220,7 @@ class DigitalJS {
             edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
         this.#editor_markers = editor_markers;
     }
+
     #loadJSON(json, uri) {
         this.#document.sources.doc_uri = uri;
         this.#document.revert(json);

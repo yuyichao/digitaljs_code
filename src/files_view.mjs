@@ -9,8 +9,8 @@ import { rel_compat2 } from './utils.mjs';
 class CircuitFile extends vscode.TreeItem {
     constructor(uri) {
         let name = 'Unnamed circuit';
-        if (uri)
-            name = path.basename(uri.path);
+        if (uri && uri.scheme !== 'untitled')
+            name = path.basename(uri.path) || name;
         super(name, vscode.TreeItemCollapsibleState.Expanded);
         this.iconPath = new vscode.ThemeIcon('circuit-board');
         this.id = 'root-circuit';

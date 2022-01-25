@@ -11,7 +11,7 @@ export function hash_sha512(data) {
 }
 
 export function rel_compat1(uri) {
-    return uri && !uri.fragment && !uri.query;
+    return uri && !uri.fragment && !uri.query && uri.scheme !== 'untitled';
 }
 
 export function rel_compat2(uri1, uri2) {

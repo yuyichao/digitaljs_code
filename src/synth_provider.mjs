@@ -15,9 +15,15 @@ export class SynthProvider {
                 this.#djs.doSynth();
                 return;
             case 'update-options':
-                this.#djs.synth_options = message.options;
+                if (message.options._doc_id == this.#djs.doc_id) {
+                    delete message.options._doc_id;
+                    this.#djs.synth_options = message.options;
+                }
                 return;
         }
+    }
+    #extendedOptions() {
+        return { ...this.#djs.synth_options, _doc_id: this.#djs.doc_id };
     }
     resolveWebviewView(view, context, _token) {
         const ui_uri = view.webview.asWebviewUri(this.#djs.uiToolkitPath);
@@ -27,15 +33,16 @@ export class SynthProvider {
             enableScripts: true
         };
         const queue = new WebviewMsgQueue(view.webview);
+        const refresh_options = () => {
+            queue.post({ command: "update-options", options: this.#extendedOptions() });
+        };
         view.webview.onDidReceiveMessage((msg) => {
             // we don't really care what message it is but if we've got a message
             // then the initialization has finished...
             queue.release();
             this.#processCommand(msg, view.webview, context);
         });
-        const option_listener = this.#djs.synthOptionUpdated(() => {
-            queue.post({ command: "update-options", options: this.#djs.synth_options });
-        });
+        const option_listener = this.#djs.synthOptionUpdated(refresh_options);
         view.onDidDispose(() => {
             option_listener.dispose();
         });
@@ -44,7 +51,7 @@ export class SynthProvider {
 <head>
   <meta charset="UTF-8">
   <script>
-    window.init_options = ${JSON.stringify(this.#djs.synth_options)};
+    window.init_options = ${JSON.stringify(this.#extendedOptions())};
   </script>
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${synth_uri}"></script>

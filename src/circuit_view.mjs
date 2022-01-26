@@ -14,15 +14,15 @@ export class CircuitView {
         this.#panel = panel;
         this.#document = document;
         this.#queue = new WebviewMsgQueue(this.#panel.webview);
-        this.#panel.iconPath = djs.iconPath;
+        this.#panel.iconPath = djs.iconPath; // currently no effect for custom editor
         this.onDidDispose = this.#panel.onDidDispose;
         this.onDidChangeViewState = this.#panel.onDidChangeViewState;
         this.#panel.webview.onDidReceiveMessage((msg) => {
             this.#queue.release();
             this.#document.processCommand(msg);
         });
-        let circuit_listener = this.#document.circuitUpdated(() => {
-            this.#showCircuit(true, false);
+        let circuit_listener = this.#document.circuitUpdated((run) => {
+            this.#showCircuit(run, false);
             this.reveal();
         });
         this.onDidDispose(() => {
@@ -35,6 +35,9 @@ export class CircuitView {
     }
     get panel() {
         return this.#panel;
+    }
+    get document() {
+        return this.#document;
     }
     init() {
         return this.#init;

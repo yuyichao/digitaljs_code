@@ -25,6 +25,7 @@
         "simulation"
     ],
     "activationEvents": [
+        "onCustomEditor:digitaljs.circuitView",
         "onStartupFinished"
     ],
     "main": "./dist/local-extension.js",
@@ -86,27 +87,9 @@
                 "category": "DigitalJS"
             },
             {
-                "command": "digitaljs.openJSON",
-                "title": "Open Circuit",
-                "icon": "$(folder-opened)",
-                "category": "DigitalJS"
-            },
-            {
                 "command": "digitaljs.addFiles",
                 "title": "Add Files",
                 "icon": "$(add)",
-                "category": "DigitalJS"
-            },
-            {
-                "command": "digitaljs.saveJSON",
-                "title": "Save Circuit",
-                "icon": "$(save)",
-                "category": "DigitalJS"
-            },
-            {
-                "command": "digitaljs.saveAsJSON",
-                "title": "Save As Circuit",
-                "icon": "$(save-as)",
                 "category": "DigitalJS"
             },
             {
@@ -128,6 +111,18 @@
                 "category": "DigitalJS"
             }
         ],
+        "customEditors": [
+            {
+                "viewType": "digitaljs.circuitView",
+                "displayName": "DigitalJS",
+                "selector": [
+                    {
+                        "filenamePattern": "*.json"
+                    }
+                ],
+                "priority": "option"
+            }
+        ],
         "menus": {
             "view/title": [
                 {
@@ -136,24 +131,9 @@
                     "group": "navigation@0"
                 },
                 {
-                    "command": "digitaljs.openJSON",
-                    "when": "view == digitaljs-proj-files",
-                    "group": "navigation@1"
-                },
-                {
                     "command": "digitaljs.addFiles",
                     "when": "view == digitaljs-proj-files",
-                    "group": "navigation@2"
-                },
-                {
-                    "command": "digitaljs.saveJSON",
-                    "when": "view == digitaljs-proj-files",
-                    "group": "navigation@3"
-                },
-                {
-                    "command": "digitaljs.saveAsJSON",
-                    "when": "view == digitaljs-proj-files",
-                    "group": "navigation@4"
+                    "group": "navigation@1"
                 }
             ],
             "editor/title": [

@@ -5,8 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { set_yosys_wasm_uri } from './requests.mjs';
-import { CircuitView } from './circuit_view.mjs';
-import { Document } from './document.mjs';
+import { EditorProvider } from './editor.mjs';
 import { FilesView } from './files_view.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
@@ -19,6 +18,27 @@ export function activate(context) {
 export function deactivate() {
 }
 
+// I'm not sure how to supply a extension to untitled document
+// while having vscode automatically pick up an unused document title for us
+// so I think I'll need to calculate the file names myself.
+// There might have been unsaved untitled document restored from the last session
+// and AFAICT vscode doesn't tell us about it. We could potentially keep track of that
+// in workspace storage but I'm not very confident that I can keep it up-to-date correctly...
+class UntitledTracker {
+    #used = {}
+    alloc() {
+        for (let i = 0; ; i++) {
+            if (this.#used[i])
+                continue;
+            this.#used[i] = true;
+            return i;
+        }
+    }
+    free(i) {
+        delete this.#used[i];
+    }
+}
+
 class DigitalJS {
     #document
     #tickUpdated
@@ -28,6 +48,7 @@ class DigitalJS {
     #circuitView
     #filesView
     #editor_markers = {}
+    #untitled_tracker
     constructor(context) {
         // Paths
         const ext_uri = context.extensionUri;
@@ -45,39 +66,6 @@ class DigitalJS {
         set_yosys_wasm_uri(vscode.Uri.joinPath(ext_uri, "node_modules", "yosysjs",
                                                "dist", "yosys.wasm"));
 
-        this.#document = new Document(undefined, {});
-        this.#document.sourcesUpdated(() => {
-            this.#sourcesUpdated.fire();
-        });
-        this.#document.synthOptionUpdated(() => {
-            this.#synthOptionUpdated.fire();
-        });
-        this.#document.circuitUpdated(() => {
-            this.#processMarker({});
-            this.#circuitView.reveal();
-        });
-        this.#document.tickUpdated((tick) => {
-            this.#tickUpdated.fire(tick);
-        })
-        this.#document.showMarker((editor_markers) => {
-            this.#processMarker(editor_markers);
-        });
-        this.#document.documentEdited(() => {
-            this.dirty = true;
-        });
-        this.#document.iopanelMessage((message) => {
-            this.#iopanelMessage.fire(message);
-        });
-        this.#document.runStatesUpdated((states) => {
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
-                                           states.hascircuit);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
-                                           states.running);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
-                                           states.pendingEvents);
-
-        });
-        this.dirty = false;
         this.#tickUpdated = new vscode.EventEmitter();
         this.tickUpdated = this.#tickUpdated.event;
         this.#sourcesUpdated = new vscode.EventEmitter();
@@ -87,6 +75,8 @@ class DigitalJS {
         this.iopanelMessage = this.#iopanelMessage.event;
         this.#synthOptionUpdated = new vscode.EventEmitter();
         this.synthOptionUpdated = this.#synthOptionUpdated.event;
+
+        this.#untitled_tracker = new UntitledTracker();
 
         this.highlightDecoType = vscode.window.createTextEditorDecorationType({
             backgroundColor: new vscode.ThemeColor('peekViewEditor.matchHighlightBackground'),
@@ -122,17 +112,8 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.newJSON',
                                             () => this.#newJSON()));
         context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.openJSON',
-                                            () => this.#openJSON()));
-        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.addFiles',
                                             () => this.#addFiles()));
-        context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.saveJSON',
-                                            () => this.#saveJSON()));
-        context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.saveAsJSON',
-                                            () => this.#saveAsJSON()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.removeSource',
                                             (item) => this.#removeSource(item)));
@@ -155,6 +136,16 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.window.registerTreeDataProvider('digitaljs-proj-files', this.#filesView));
 
+        context.subscriptions.push(
+            vscode.window.registerCustomEditorProvider(
+                EditorProvider.viewType,
+                new EditorProvider(this),
+                {
+                    webviewOptions: { retainContextWhenHidden: true },
+                    supportsMultipleEditorsPerDocument: false,
+                }
+        ));
+
         context.subscriptions.push(this);
 
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
@@ -167,37 +158,69 @@ class DigitalJS {
     }
 
     get doc_id() {
-        return this.#document.doc_id;
+        if (this.#document)
+            return this.#document.doc_id;
+        return;
     }
     get tick() {
-        return this.#document.tick;
+        if (this.#document)
+            return this.#document.tick;
+        return 0;
     }
     get synth_options() {
-        return this.#document.synth_options;
+        if (this.#document)
+            return this.#document.synth_options;
+        return {};
     }
     set synth_options(options) {
-        this.#document.synth_options = options;
+        if (this.#document) {
+            this.#document.synth_options = options;
+        }
     }
     get scriptRunning() {
-        return this.#document.sources.scriptRunning;
+        if (this.#document)
+            return this.#document.sources.scriptRunning;
+        return [];
     }
     get scriptNotRunning() {
-        return this.#document.sources.scriptNotRunning;
+        if (this.#document)
+            return this.#document.sources.scriptNotRunning;
+        return [];
     }
     get doc_uri() {
-        return this.#document.uri;
+        if (this.#document)
+            return this.#document.uri;
+        return;
     }
     get doc_dir_uri() {
-        return this.#document.sources.doc_dir_uri;
+        if (this.#document)
+            return this.#document.sources.doc_dir_uri;
+        return;
     }
     get sources_entries() {
-        return this.#document.sources.entries();
+        if (this.#document)
+            return this.#document.sources.entries();
+        return [];
     }
     get iopanelViews() {
-        return this.#document.iopanelViews;
+        if (this.#document)
+            return this.#document.iopanelViews;
+        return [];
+    }
+    get runStates() {
+        if (this.#document)
+            return this.#document.runStates;
+        return {};
     }
     async doSynth() {
-        await this.#document.doSynth();
+        if (this.#document) {
+            await this.#document.doSynth();
+        }
+    }
+    postPanelMessage(msg) {
+        if (!this.#circuitView)
+            return;
+        this.#circuitView.post(msg);
     }
     #pauseSim() {
         this.postPanelMessage({ command: 'pausesim' });
@@ -213,113 +236,6 @@ class DigitalJS {
     }
     #nextEventSim() {
         this.postPanelMessage({ command: 'nexteventsim' });
-    }
-    #processMarker(editor_markers) {
-        for (const edit_info of Object.values(this.#editor_markers))
-            edit_info.editor.setDecorations(this.highlightDecoType, []);
-        for (const edit_info of Object.values(editor_markers))
-            edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
-        this.#editor_markers = editor_markers;
-    }
-
-    #loadJSON(json, uri) {
-        this.#document.sources.doc_uri = uri;
-        this.#document.revert(json);
-        this.dirty = false;
-    }
-    async #confirmUnsavedJSON() {
-        if (!this.dirty)
-            return true;
-        const res = await vscode.window.showErrorMessage(`Save current circuit?`,
-                                                         'Yes', 'No', 'Cancel');
-        if (!res || res == 'Cancel')
-            return false;
-        if (res == 'Yes')
-            await this.#saveJSON();
-        return true;
-    }
-    async #newJSON() {
-        if (!(await this.#confirmUnsavedJSON()))
-            return;
-        this.#loadJSON({});
-    }
-    async #readJSONFile(file) {
-        let str;
-        try {
-            str = await read_txt_file(file);
-        }
-        catch (e) {
-            await vscode.window.showErrorMessage(`Cannot open ${file}: ${e}`);
-            return;
-        }
-        let json;
-        try {
-            json = JSON.parse(str);
-        }
-        catch (e) {
-            await vscode.window.showErrorMessage(`${file} is not a valid JSON file: ${e}`);
-            return;
-        }
-        if (typeof json !== "object" || json === null) {
-            await vscode.window.showErrorMessage(`${file} is not a valid JSON object.`);
-            return;
-        }
-        return json;
-    }
-    async #loadJSONFile(file) {
-        const json = await this.#readJSONFile(file);
-        if (!json)
-            return;
-        this.#loadJSON(json, file);
-    }
-    async #openJSON() {
-        if (!(await this.#confirmUnsavedJSON()))
-            return;
-        const file = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters: {
-                "Circuit JSON": ['json'],
-            }
-        });
-        if (!file)
-            return;
-        return this.#loadJSONFile(file[0]);
-    }
-    async #addFiles() {
-        const files = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: true,
-            filters: {
-                "SystemVerilog": ['sv'],
-                "Verilog": ['v'],
-                "Verilog HEX file": ['vh'],
-                "Lua script": ['lua'],
-            }
-        });
-        if (!files)
-            return;
-        this.#document.addSources(files);
-    }
-    #saveJSON() {
-        if (!this.#document.uri)
-            return this.#saveAsJSON();
-        return this.#document.save();
-    }
-    async #saveAsJSON() {
-        const files = await vscode.window.showOpenDialog({
-            filters: {
-                "Circuit JSON": ['json'],
-            }
-        });
-        if (!files)
-            return;
-        return this.#document.saveAs(files[0]);
-    }
-    #removeSource(item) {
-        this.#document.removeSource(item.resourceUri);
     }
     async #startScript(item) {
         const uri = item.resourceUri;
@@ -345,19 +261,191 @@ class DigitalJS {
             name: item.resourceUri.toString()
         });
     }
-    postPanelMessage(msg) {
-        if (!this.#circuitView)
-            return;
-        this.#circuitView.post(msg);
+    #processMarker(editor_markers) {
+        for (const edit_info of Object.values(this.#editor_markers))
+            edit_info.editor.setDecorations(this.highlightDecoType, []);
+        for (const edit_info of Object.values(editor_markers))
+            edit_info.editor.setDecorations(this.highlightDecoType, edit_info.markers);
+        this.#editor_markers = editor_markers;
     }
-    async #openViewJSON(uri) {
-        await this.#createOrShowView(true);
-        if (!(await this.#confirmUnsavedJSON()))
+
+    #findViewByURI(uri) {
+        const uri_str = uri.toString();
+        for (let view = this.#circuitView; view; view = view._djs_prev_view) {
+            if (view.document.uri.toString() == uri_str) {
+                return view;
+            }
+        }
+    }
+    registerDocument(document, circuit_view) {
+        vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
+
+        const listeners = [];
+        listeners.push(document.sourcesUpdated(() => {
+            if (document !== this.#document)
+                return;
+            this.#sourcesUpdated.fire();
+        }));
+        listeners.push(document.synthOptionUpdated(() => {
+            if (document !== this.#document)
+                return;
+            this.#synthOptionUpdated.fire();
+        }));
+        listeners.push(document.circuitUpdated(() => {
+            if (document !== this.#document)
+                return;
+            this.#processMarker({});
+        }));
+        listeners.push(document.tickUpdated((tick) => {
+            if (document !== this.#document)
+                return;
+            this.#tickUpdated.fire(tick);
+        }));
+        listeners.push(document.showMarker((editor_markers) => {
+            if (document !== this.#document)
+                return;
+            this.#processMarker(editor_markers);
+        }));
+        listeners.push(document.iopanelMessage((message) => {
+            if (document !== this.#document)
+                return;
+            this.#iopanelMessage.fire(message);
+        }));
+        const set_runstates = (states) => {
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
+                                           states.hascircuit);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
+                                           states.running);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
+                                           states.pendingEvents);
+        };
+        listeners.push(document.runStatesUpdated((states) => {
+            if (document !== this.#document)
+                return;
+            set_runstates(states);
+        }));
+
+        const post_switch = () => {
+            this.#sourcesUpdated.fire();
+            this.#synthOptionUpdated.fire();
+            this.#processMarker({});
+            this.#tickUpdated.fire(this.tick);
+            this.#iopanelMessage.fire({ command: 'iopanel:view', view: this.iopanelViews });
+            set_runstates(this.runStates);
+        };
+
+        const link_view = (d, v) => {
+            const prev = this.#circuitView;
+            if (prev)
+                prev._djs_next_view = v;
+            this.#document = d;
+            this.#circuitView = v;
+            v._djs_prev_view = prev;
+            v._djs_next_view = undefined;
+        };
+        const unlink_view = (v) => {
+            const prev = v._djs_prev_view;
+            const next = v._djs_next_view;
+            v._djs_prev_view = undefined;
+            v._djs_next_view = undefined;
+            if (prev)
+                prev._djs_next_view = next;
+            if (next) {
+                next._djs_prev_view = prev;
+            }
+            else {
+                this.#document = prev ? prev.document : undefined;
+                this.#circuitView = prev;
+            }
+        };
+        const switch_document = (d, v) => {
+            if (this.#circuitView === v)
+                return false;
+            // v may or may not be linked in yet, check that first before unlinking.
+            // v isn't the lates one so if it's linked in it must have a next.
+            if (v._djs_next_view)
+                unlink_view(v);
+            link_view(d, v);
+
+            post_switch();
+            return true;
+        };
+        const on_view_state = () => {
+            const panel = circuit_view.panel;
+            if (panel.active) {
+                if (switch_document(document, circuit_view))
+                    vscode.commands.executeCommand('digitaljs-proj-files.focus');
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
+            }
+            else if (this.#document === document) {
+                // Keep the last active document active in the side bars.
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
+            }
+        };
+        circuit_view.onDidChangeViewState(on_view_state);
+        on_view_state();
+        // Make sure we links the new one in even if it's somehow hidden.
+        switch_document(document, circuit_view);
+        circuit_view.onDidDispose(() => {
+            const uri = document.uri;
+            if (uri.scheme === 'untitled') {
+                const m = uri.path.match(/^circuit-(\d*)\.json$/);
+                if (m) {
+                    this.#untitled_tracker.free(parseInt(m[1]));
+                }
+            }
+            for (const listener of listeners)
+                listener.dispose();
+            const was_active = this.#circuitView === circuit_view;
+            unlink_view(this.#circuitView);
+            if (was_active) {
+                post_switch();
+                vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
+            }
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive',
+                                           !!this.#circuitView);
+        });
+    }
+
+    #newJSON() {
+        // The command "workbench.action.files.newUntitledFile"
+        // can also be used to open a new circuit but it doesn't allow
+        // adding a hint for the filename AFAICT.
+        const id = this.#untitled_tracker.alloc();
+        this.#openViewJSON(vscode.Uri.parse(`untitled:circuit-${id}.json`));
+    }
+    async #addFiles() {
+        if (!this.#document)
             return;
-        return this.#loadJSONFile(uri);
+        const document = this.#document;
+        const files = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: true,
+            filters: {
+                "SystemVerilog": ['sv'],
+                "Verilog": ['v'],
+                "Verilog HEX file": ['vh'],
+                "Lua script": ['lua'],
+            }
+        });
+        if (!files)
+            return;
+        document.addSources(files);
+    }
+    #removeSource(item) {
+        if (!this.#document)
+            return;
+        this.#document.removeSource(item.resourceUri);
+    }
+    #openViewJSON(uri) {
+        const active_editor = vscode.window.activeTextEditor;
+        const active_uri = active_editor ? active_editor.document.uri : undefined;
+        if (uri.toString() == active_uri.toString())
+            vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
     }
     async #openViewSource(item) {
-        await this.#createOrShowView(true);
         this.#document.addSources([item.resourceUri]);
     }
     async #openView() {
@@ -365,73 +453,47 @@ class DigitalJS {
         let uri;
         if (active_editor)
             uri = active_editor.document.uri;
-        await this.#createOrShowView(true);
+        const new_or_active = () => {
+            if (this.#circuitView)
+                return this.#circuitView.reveal();
+            this.#newJSON();
+        };
+        // No active editor (or files of type we don't recognize, see below)
+        // Switch to the latest view or open a new one.
         if (!uri)
-            return;
+            return new_or_active();
+        // If we have this open as circuit already, switch to it.
+        const exist_view = this.#findViewByURI(uri);
+        if (exist_view)
+            return exist_view.reveal();
         const ext = path.extname(uri.path);
         if (ext == '.json') {
+            // For json files, ask if the user want to open
+            const new_circuit = !this.#circuitView;
             const res = await vscode.window.showInformationMessage(
-                `Open ${uri.path} as circuit?`, 'Yes', 'No');
-            if (res != 'Yes')
+                `Open ${uri.path} as circuit?`, 'Open',
+                new_circuit ? 'New circuit' : 'Switch to last one');
+            if (!res) // Cancelled
                 return;
-            if (!(await this.#confirmUnsavedJSON()))
-                return;
-            return this.#loadJSONFile(uri);
+            if (res === 'Open')
+                return this.#openViewJSON(uri);
+            // Check circuitView again in case it was just closed
+            if (new_circuit && this.#circuitView)
+                return this.#circuitView.reveal();
+            return this.#newJSON();
         }
-        if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
+        else if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
             const res = await vscode.window.showInformationMessage(
                 `Add ${uri.path} to current circuit?`, 'Yes', 'No');
-            if (res != 'Yes')
+            if (!res) // Cancelled
                 return;
-            this.#document.addSources(uri);
-            return;
+            new_or_active();
+            if (res !== 'Yes')
+                return;
+            this.#document.addSources([uri]);
         }
-    }
-    async #createOrShowView(focus, column) {
-        const active = vscode.window.activeTextEditor;
-        column = column || (active ? active.viewColumn : undefined);
-        if (this.#circuitView) {
-            if (focus)
-                this.#circuitView.reveal(column);
-            return;
-        }
-        column = column || vscode.ViewColumn.One;
-        vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', true);
-        vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
-        this.#circuitView = new CircuitView(this, vscode.window.createWebviewPanel(
-            'digitaljs-mainview',
-            'DigitalJS',
-            {
-                // The view is still brought to the front
-                // even with preserveFocus set to true...
-                preserveFocus: !focus,
-                viewColumn: column
-            },
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true
-            }
-        ), this.#document);
-        this.#circuitView.onDidDispose(() => {
-            // TODO: would be nice if we can try to save here
-            // and maybe confirm if the user actually wants to close?
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive', false);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
-            this.#circuitView = undefined;
-            this.#processMarker({});
-            this.#document.sources.doc_uri = undefined;
-            this.#document.revert({});
-            this.dirty = false;
-        });
-        this.#circuitView.onDidChangeViewState((e) => {
-            const panel = e.webviewPanel;
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus',
-                                           panel.active);
-            if (panel.visible)
-                vscode.commands.executeCommand('digitaljs-proj-files.focus');
-        });
-        if (focus) {
-            vscode.commands.executeCommand('digitaljs-proj-files.focus');
+        else {
+            new_or_active();
         }
     }
 }

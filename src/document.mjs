@@ -163,8 +163,8 @@ export class Document {
             ...this.#extra_data,
         };
     }
-    #toSave() {
-        const [sources, has_fullpath] = this.#sources.toSave();
+    #toSave(doc_uri) {
+        const [sources, has_fullpath] = this.#sources.toSave(doc_uri);
         if (has_fullpath)
             vscode.window.showWarningMessage(`Saved project contains full path to source file.`);
         return {
@@ -175,24 +175,18 @@ export class Document {
         };
     }
     async saveAs(doc_uri) {
-        const origin_doc = this.#sources.doc_uri;
-        if (doc_uri)
-            this.#sources.doc_uri = doc_uri;
-        if (!this.#sources.doc_uri)
+        doc_uri = doc_uri || this.#sources.doc_uri;
+        if (!doc_uri)
             return vscode.window.showErrorMessage('Please select a path to save as.');
         try {
-            const str = JSON.stringify(this.#toSave());
-            await write_txt_file(this.#sources.doc_uri, str);
+            const str = JSON.stringify(this.#toSave(doc_uri));
+            await write_txt_file(doc_uri, str);
         }
         catch (e) {
-            const saving_uri = this.#sources.doc_uri;
-            this.#sources.doc_uri = origin_doc;
             console.error(e);
-            return vscode.window.showErrorMessage(`Saving to ${saving_uri} failed: ${e}`);
+            return vscode.window.showErrorMessage(`Saving to ${doc_uri} failed: ${e}`);
         }
-        vscode.window.showInformationMessage(`Circuit saved to ${this.#sources.doc_uri}`);
-        // Update file list since the main document might have changed.
-        this.#sources.refresh();
+        vscode.window.showInformationMessage(`Circuit saved to ${doc_uri}`);
     }
     save() {
         return this.saveAs();
@@ -202,7 +196,7 @@ export class Document {
         this.tick = 0;
         this.#clearMarker();
         this.#sources.refresh();
-        this.#circuitUpdated.fire(this.#circuit);
+        this.#circuitUpdated.fire(false);
         this.#synthOptionUpdated.fire();
     }
     async backup(dest) {
@@ -265,7 +259,7 @@ export class Document {
         this.#circuit = after;
         this.#createEdit(before, after, label, (circuit) => {
             this.#circuit = circuit;
-            this.#circuitUpdated.fire(circuit);
+            this.#circuitUpdated.fire(false);
         });
     }
     async doSynth() {
@@ -281,7 +275,7 @@ export class Document {
             return;
         this.#circuitEdit(res.output, 'Synthesis');
         this.tick = 0;
-        this.#circuitUpdated.fire(res.output);
+        this.#circuitUpdated.fire(true); // force a run
         return true;
     }
     #processMarker(markers) {

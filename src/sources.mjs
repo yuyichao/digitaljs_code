@@ -186,8 +186,8 @@ export class Sources {
             res.push(this.#map[key].toBackup());
         return res;
     }
-    toSave() {
-        const doc_dir_uri = this.doc_dir_uri;
+    toSave(doc_dir) {
+        const doc_dir_uri = doc_dir ? get_dirname_uri(doc_dir) : this.doc_dir_uri;
         const res = [];
         let has_fullpath = false;
         for (const key in this.#map) {

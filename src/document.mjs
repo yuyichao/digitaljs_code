@@ -17,6 +17,8 @@ const default_synth_options = {
     fsmexpand: false
 };
 
+let doc_id = 1;
+
 export class Document {
     #sources
     #extra_data = {}
@@ -27,6 +29,8 @@ export class Document {
     #iopanelViews = []
     #iopanelViewIndices = {}
     #runStates = { hascircuit: false, running: false, pendingEvents: false }
+
+    #doc_id
 
     // Events
     sourcesUpdated // fired for all updates
@@ -46,6 +50,7 @@ export class Document {
     runStatesUpdated
     #runStatesUpdated
     constructor(doc_uri, data) {
+        this.#doc_id = doc_id++;
         this.#sources = new Sources();
         this.sourcesUpdated = this.#sources.onChanged;
         this.#load(doc_uri, data);
@@ -72,6 +77,9 @@ export class Document {
     // Properties
     get uri() {
         return this.#sources.doc_uri;
+    }
+    get doc_id() {
+        return this.#doc_id;
     }
     get sources() {
         return this.#sources;

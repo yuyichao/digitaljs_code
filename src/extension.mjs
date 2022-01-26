@@ -166,6 +166,9 @@ class DigitalJS {
         this.#filesView.dispose();
     }
 
+    get doc_id() {
+        return this.#document.doc_id;
+    }
     get tick() {
         return this.#document.tick;
     }

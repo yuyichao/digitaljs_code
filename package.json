@@ -26,7 +26,12 @@
     ],
     "activationEvents": [
         "onCustomEditor:digitaljs.circuitView",
-        "onStartupFinished"
+        "onCommand:digitaljs.openView",
+        "onCommand:digitaljs.openViewJSON",
+        "onCommand:digitaljs.openViewSource",
+        "onCommand:digitaljs.newJSON",
+        "onCommand:digitaljs.addFiles",
+        "onCommand:digitaljs.removeSource"
     ],
     "main": "./dist/local-extension.js",
     "browser": "./dist/web-extension.js",

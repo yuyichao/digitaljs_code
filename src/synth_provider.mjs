@@ -4,6 +4,8 @@
 
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
 
+let view_id = 1;
+
 export class SynthProvider {
     #djs
     constructor(djs) {
@@ -36,10 +38,22 @@ export class SynthProvider {
         const refresh_options = () => {
             queue.post({ command: "update-options", options: this.#extendedOptions() });
         };
+        let first_init = true;
         view.webview.onDidReceiveMessage((msg) => {
             // we don't really care what message it is but if we've got a message
             // then the initialization has finished...
             queue.release();
+            if (msg.command == 'init') {
+                if (first_init) {
+                    first_init = false;
+                }
+                else {
+                    // If the view is reinited, it might have missed many update events.
+                    // Send an update to make sure the view catches up with the changes...
+                    refresh_options();
+                }
+                return;
+            }
             this.#processCommand(msg, view.webview, context);
         });
         const option_listener = this.#djs.synthOptionUpdated(refresh_options);
@@ -51,6 +65,7 @@ export class SynthProvider {
 <head>
   <meta charset="UTF-8">
   <script>
+    window.view_id = ${view_id++}
     window.init_options = ${JSON.stringify(this.#extendedOptions())};
   </script>
   <script type="module" src="${ui_uri}"></script>

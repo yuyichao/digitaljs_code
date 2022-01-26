@@ -22,7 +22,7 @@ export class CircuitView {
             this.#document.processCommand(msg);
         });
         let circuit_listener = this.#document.circuitUpdated(() => {
-            this.#showCircuit();
+            this.#showCircuit(true, false);
             this.reveal();
         });
         this.onDidDispose(() => {
@@ -30,7 +30,7 @@ export class CircuitView {
         });
         this.#init = this.#getViewContent(djs, this.#panel.webview).then(content => {
             this.#panel.webview.html = content;
-            this.#showCircuit(true);
+            this.#showCircuit(false, true); // force pause
         });
     }
     get panel() {
@@ -39,11 +39,11 @@ export class CircuitView {
     init() {
         return this.#init;
     }
-    #showCircuit(pause) {
+    #showCircuit(run, pause) {
         this.post({
             command: 'showcircuit',
             circuit: this.#document.circuit,
-            opts: { pause }
+            opts: { run, pause }
         });
     }
     async #getViewContent(djs, webview) {

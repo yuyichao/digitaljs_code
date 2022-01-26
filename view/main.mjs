@@ -249,6 +249,16 @@ class DigitalJS {
         this.#queueCallback(ele, evt_type);
     }
     #mkCircuit(data, opts) {
+        let run_circuit = false;
+        if (opts.run) {
+            run_circuit = true;
+        }
+        else if (opts.pause) {
+            run_circuit = false;
+        }
+        else if (this.circuit) {
+            run_circuit = this.circuit.running
+        }
         this.#destroyCircuit();
         if (circuit_empty(data))
             return;
@@ -333,7 +343,7 @@ class DigitalJS {
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });
-        if (!opts.pause)
+        if (run_circuit)
             this.circuit.start();
         this.#monitor = new digitaljs.Monitor(this.circuit);
         if (this.#monitormem) {

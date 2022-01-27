@@ -522,10 +522,17 @@ class DigitalJS {
             return this.#newJSON();
         }
         else if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
+            // Source file already in current document.
+            if (this.#document && this.#document.sources.findByURI(uri))
+                return this.#circuitView.reveal();
+            const new_circuit = !this.#circuitView;
             const res = await vscode.window.showInformationMessage(
-                `Add ${uri.path} to current circuit?`, 'Yes', 'No');
+                `Add ${uri.path} to ${new_circuit ? 'a new' : 'current'} circuit?`, 'Yes', 'No');
             if (!res) // Cancelled
                 return;
+            // It's possible that a circuit was just openned or closed
+            // and we aren't doing exactly what we said we were going to do in the popup
+            // but I'm too lazy to check for that...
             if (res !== 'Yes')
                 return new_or_active();
             this.#openViewSource(uri);

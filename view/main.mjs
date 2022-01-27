@@ -267,20 +267,51 @@ class DigitalJS {
             engine: digitaljs.engines.WorkerEngine,
             engineOptions: { workerURL: window.simWorkerUri }
         };
+        // The layout actually uses display information (i.e. the text widths of the labels)
+        // so we can't really do it well on the host side
+        // (it also means that we can't really guarantee portability).
+        // However, we still don't want to treat automatic layout changes as
+        // user edits so for now we'll just ignore all of them.
+        //
+        // This creates an minor inconsistency in the result that the initial circuit saved
+        // won't have layout info in it but when the user edited the circuit graphically
+        // it would.
+        // If the digitaljs library ever re-layout the circuit based on the changes in the text,
+        // etc, it should hopefully be done in a way that keeps the loading result consistent
+        // (i.e. if the pre-auto-layout circuit is saved, the load result should be identical
+        // assuming the same layout parameter is used, or in another word,
+        // the loading code should reapply layout adjustment)
+        let in_layout = false;
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
+        this.circuit.listenTo(this.circuit._graph, 'elkjs:layout_start', (ele) => {
+            in_layout = true;
+        });
+        this.circuit.listenTo(this.circuit._graph, 'elkjs:layout_end', (ele) => {
+            in_layout = false;
+        });
         this.circuit.listenTo(this.circuit._graph, 'change:position', (ele) => {
+            if (in_layout)
+                return;
             this.#checkAndQueueChange(ele, 'pos');
         });
         this.circuit.listenTo(this.circuit._graph, 'change:vertices', (ele) => {
+            if (in_layout)
+                return;
             this.#checkAndQueueChange(ele, 'vert');
         });
         this.circuit.listenTo(this.circuit._graph, 'change:source', (ele) => {
+            if (in_layout)
+                return;
             this.#checkAndQueueChange(ele, 'src');
         });
         this.circuit.listenTo(this.circuit._graph, 'change:target', (ele) => {
+            if (in_layout)
+                return;
             this.#checkAndQueueChange(ele, 'tgt');
         });
         this.circuit.listenTo(this.circuit._graph, 'add', (ele, cells) => {
+            if (in_layout)
+                return;
             const evt_type = 'add';
             const old_info = this.#change_tracker.info;
             if (old_info) {
@@ -296,6 +327,8 @@ class DigitalJS {
             this.#queueCallback(ele, evt_type);
         });
         this.circuit.listenTo(this.circuit._graph, 'remove', (ele, cells) => {
+            if (in_layout)
+                return;
             const cid = ele.cid;
             const evt_type = 'rm';
             const old_info = this.#change_tracker.info;
@@ -320,6 +353,8 @@ class DigitalJS {
                                  type: evt_type, ele_type });
         });
         this.circuit.listenTo(this.circuit._graph, 'batch:stop', (data) => {
+            if (in_layout)
+                return;
             const batch_name = data.batchName;
             // These events marks the end of a drag-and-move event
             // Out of the events that I've observed, we do not want to handle the

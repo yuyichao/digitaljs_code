@@ -49,6 +49,7 @@ class DigitalJS {
     #filesView
     #editor_markers = {}
     #untitled_tracker
+    #pendingSources = []
     constructor(context) {
         // Paths
         const ext_uri = context.extensionUri;
@@ -408,6 +409,17 @@ class DigitalJS {
             vscode.commands.executeCommand('setContext', 'digitaljs.view_isactive',
                                            !!this.#circuitView);
         });
+        if (this.#pendingSources.length > 0) {
+            const uri_str = document.uri.toString();
+            const sources = [];
+            for (const src of this.#pendingSources) {
+                if (src.doc_uri == uri_str) {
+                    sources.push(src.uri);
+                }
+            }
+            document.addSources(sources);
+            this.#pendingSources.length = 0;
+        }
     }
 
     #newJSON() {
@@ -415,7 +427,9 @@ class DigitalJS {
         // can also be used to open a new circuit but it doesn't allow
         // adding a hint for the filename AFAICT.
         const id = this.#untitled_tracker.alloc();
-        this.#openViewJSON(vscode.Uri.parse(`untitled:circuit-${id}.json`));
+        const uri_str = `untitled:circuit-${id}.json`;
+        this.#openViewJSON(vscode.Uri.parse(uri_str));
+        return uri_str;
     }
     async #addFiles() {
         if (!this.#document)
@@ -453,8 +467,25 @@ class DigitalJS {
             vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
     }
-    async #openViewSource(item) {
-        this.#document.addSources([item.resourceUri]);
+    #openViewSource(uri) {
+        if (this.#circuitView) {
+            this.#circuitView.reveal();
+            this.#document.addSources([uri]);
+        }
+        else {
+            // If we are creating a new document, we won't have the handle to the document
+            // right after `#newJSON` returns.
+            // Add the uri to an pending list and we'll add it
+            // when the new document get registered.
+            // Since the new untitled document creation isn't very reliable right now
+            // and it's possible that we don't actually create a new document
+            // we'll record the expected document uri as well
+            // and only add it if the uri matches.
+            // This way we can at least avoid action-at-a-distance kind of issues
+            // where the sources that failed to be added get added later to
+            // an unrelated document.
+            this.#pendingSources.push({ uri, doc_uri: this.#newJSON() });
+        }
     }
     async #openView() {
         const active_editor = vscode.window.activeTextEditor;
@@ -495,10 +526,9 @@ class DigitalJS {
                 `Add ${uri.path} to current circuit?`, 'Yes', 'No');
             if (!res) // Cancelled
                 return;
-            new_or_active();
             if (res !== 'Yes')
-                return;
-            this.#document.addSources([uri]);
+                return new_or_active();
+            this.#openViewSource(uri);
         }
         else {
             new_or_active();

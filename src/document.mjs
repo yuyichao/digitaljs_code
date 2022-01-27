@@ -186,7 +186,6 @@ export class Document {
             console.error(e);
             return vscode.window.showErrorMessage(`Saving to ${doc_uri} failed: ${e}`);
         }
-        vscode.window.showInformationMessage(`Circuit saved to ${doc_uri}`);
     }
     save() {
         return this.saveAs();

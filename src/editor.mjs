@@ -51,6 +51,7 @@ export class EditorProvider {
 
     async revertCustomDocument(document, _cancel) {
         const uri = document.uri;
+        // actually vscode doesn't seems to ever call revert for untitled document...
         if (!uri || uri.scheme == 'untitled')
             return document.revert({});
         const str = await read_txt_file(uri);

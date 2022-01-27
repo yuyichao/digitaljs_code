@@ -94,6 +94,9 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.openViewSource',
                                             (item) => this.#openViewSource(item)));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.revealCircuit',
+                                            () => this.#revealCircuit()));
+        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.pause',
                                             () => this.#pauseSim()));
         context.subscriptions.push(
@@ -437,6 +440,11 @@ class DigitalJS {
         if (!this.#document)
             return;
         this.#document.removeSource(item.resourceUri);
+    }
+    #revealCircuit() {
+        if (this.#circuitView) {
+            this.#circuitView.reveal();
+        }
     }
     #openViewJSON(uri) {
         const active_editor = vscode.window.activeTextEditor;

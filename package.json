@@ -56,6 +56,12 @@
                 "category": "DigitalJS"
             },
             {
+                "command": "digitaljs.revealCircuit",
+                "title": "Show active circuit",
+                "icon": "$(output-view-icon)",
+                "category": "DigitalJS"
+            },
+            {
                 "command": "digitaljs.pause",
                 "title": "Pause",
                 "icon": "$(debug-pause)",

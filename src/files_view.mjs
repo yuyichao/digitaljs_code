@@ -16,6 +16,7 @@ class CircuitFile extends vscode.TreeItem {
         this.id = 'root-circuit';
         this.contextValue = 'root-circuit';
         this.resourceUri = uri;
+        this.command = { title: 'Show', command: 'digitaljs.revealCircuit' };
     }
 }
 

@@ -69,21 +69,23 @@ export class StatusProvider {
 </head>
 <body style="display:flex;flex-direction:column;height:100vh">
   <div style="flex-grow:0;flex-shrink:0;margin-bottom:4px">
-    <vscode-button id="start-sim" appearance="icon"
+    <vscode-button id="start-sim" appearance="icon" title="Start"
                    class="djs-start-stop-button" ${enabled(!rs.running)}>
       <i class="codicon codicon-run"></i>
     </vscode-button>
-    <vscode-button id="pause-sim" appearance="icon"
+    <vscode-button id="pause-sim" appearance="icon" title="Pause"
                    class="djs-start-stop-button" ${enabled(rs.running)}>
       <i class="codicon codicon-debug-pause"></i>
     </vscode-button>
-    <vscode-button id="fast-forward-sim" appearance="icon" ${enabled(!rs.running)}>
+    <vscode-button id="fast-forward-sim" appearance="icon"
+                   title="Fast-forward" ${enabled(!rs.running)}>
       <i class="codicon codicon-run-all"></i>
     </vscode-button>
-    <vscode-button id="single-step-sim" appearance="icon" ${enabled(!rs.running)}>
+    <vscode-button id="single-step-sim" appearance="icon"
+                   title="Single step" ${enabled(!rs.running)}>
       <i class="codicon codicon-debug-step-over"></i>
     </vscode-button>
-    <vscode-button id="next-event-sim" appearance="icon"
+    <vscode-button id="next-event-sim" appearance="icon" title="Run until next event"
                    ${enabled(!rs.running && rs.pendingEvents)}>
       <i class="codicon codicon-debug-continue"></i>
     </vscode-button>

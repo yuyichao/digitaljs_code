@@ -363,7 +363,7 @@ export class Document {
             case 'runstate':
                 this.#runStates = { hascircuit: message.hascircuit,
                                     running: message.running,
-                                    pendingEvents: message.hasPendingEvents };
+                                    pendingEvents: message.pendingEvents };
                 this.#runStatesUpdated.fire(this.#runStates);
                 return;
             case 'luastarted':

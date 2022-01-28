@@ -49,12 +49,16 @@ export class StatusProvider {
   <script type="module" src="${status_uri}"></script>
   <link href="${icon_uri}" rel="stylesheet"/>
 </head>
-<body>
-  <vscode-text-field id="clock" readonly value=${this.#djs.tick}>
-    <i slot="start" class="codicon codicon-clock"></i>
-  </vscode-text-field>
-  <table id="iopanel">
-  </table>
+<body style="display:flex;flex-direction:column;height:100vh">
+  <div style="flex-grow:0;flex-shrink:0;;margin-bottom:2px">
+    <vscode-text-field id="clock" readonly value=${this.#djs.tick}>
+      <i slot="start" class="codicon codicon-clock"></i>
+    </vscode-text-field>
+  </div>
+  <div style="flex-grow:1;flex-shrink:1;min-height:0;overflow-y:scroll">
+    <table id="iopanel">
+    </table>
+  </div>
 </body>
 </html>`;
     }

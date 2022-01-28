@@ -44,6 +44,7 @@ class DigitalJS {
     #tickUpdated
     #sourcesUpdated
     #iopanelMessage
+    #runStatesUpdated
     #synthOptionUpdated
     #circuitView
     #filesView
@@ -71,9 +72,10 @@ class DigitalJS {
         this.tickUpdated = this.#tickUpdated.event;
         this.#sourcesUpdated = new vscode.EventEmitter();
         this.sourcesUpdated = this.#sourcesUpdated.event;
-
         this.#iopanelMessage = new vscode.EventEmitter();
         this.iopanelMessage = this.#iopanelMessage.event;
+        this.#runStatesUpdated = new vscode.EventEmitter();
+        this.runStatesUpdated = this.#runStatesUpdated.event;
         this.#synthOptionUpdated = new vscode.EventEmitter();
         this.synthOptionUpdated = this.#synthOptionUpdated.event;
 
@@ -151,6 +153,15 @@ class DigitalJS {
         ));
 
         context.subscriptions.push(this);
+
+        this.runStatesUpdated((states) => {
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
+                                           states.hascircuit);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
+                                           states.running);
+            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
+                                           states.pendingEvents);
+        });
 
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
@@ -315,18 +326,10 @@ class DigitalJS {
                 return;
             this.#iopanelMessage.fire(message);
         }));
-        const set_runstates = (states) => {
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit',
-                                           states.hascircuit);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
-                                           states.running);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
-                                           states.pendingEvents);
-        };
         listeners.push(document.runStatesUpdated((states) => {
             if (document !== this.#document)
                 return;
-            set_runstates(states);
+            this.#runStatesUpdated.fire(states);
         }));
 
         const post_switch = () => {
@@ -335,7 +338,7 @@ class DigitalJS {
             this.#processMarker({});
             this.#tickUpdated.fire(this.tick);
             this.#iopanelMessage.fire({ command: 'iopanel:view', view: this.iopanelViews });
-            set_runstates(this.runStates);
+            this.#runStatesUpdated.fire(this.runStates);
         };
 
         const link_view = (d, v) => {

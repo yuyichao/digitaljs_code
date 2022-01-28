@@ -101,19 +101,12 @@ class DigitalJS {
                                             () => this.#revealCircuit()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.pause',
-                                            () => this.#pauseSim()));
+                                            () => this.postPanelMessage({
+                                                command: 'pausesim' })));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.start',
-                                            () => this.#startSim()));
-        context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.fastForward',
-                                            () => this.#fastForwardSim()));
-        context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.singleStep',
-                                            () => this.#singleStepSim()));
-        context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.nextEvent',
-                                            () => this.#nextEventSim()));
+                                            () => this.postPanelMessage({
+                                                command: 'startsim' })));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.newJSON',
                                             () => this.#newJSON()));
@@ -159,13 +152,10 @@ class DigitalJS {
                                            states.hascircuit);
             vscode.commands.executeCommand('setContext', 'digitaljs.view_running',
                                            states.running);
-            vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents',
-                                           states.pendingEvents);
         });
 
         vscode.commands.executeCommand('setContext', 'digitaljs.view_hascircuit', false);
         vscode.commands.executeCommand('setContext', 'digitaljs.view_running', false);
-        vscode.commands.executeCommand('setContext', 'digitaljs.view_pendingEvents', false);
     }
     dispose() {
         this.#document.dispose();
@@ -236,21 +226,6 @@ class DigitalJS {
         if (!this.#circuitView)
             return;
         this.#circuitView.post(msg);
-    }
-    #pauseSim() {
-        this.postPanelMessage({ command: 'pausesim' });
-    }
-    #startSim() {
-        this.postPanelMessage({ command: 'startsim' });
-    }
-    #fastForwardSim() {
-        this.postPanelMessage({ command: 'fastforwardsim' });
-    }
-    #singleStepSim() {
-        this.postPanelMessage({ command: 'singlestepsim' });
-    }
-    #nextEventSim() {
-        this.postPanelMessage({ command: 'nexteventsim' });
     }
     async #startScript(item) {
         const uri = item.resourceUri;

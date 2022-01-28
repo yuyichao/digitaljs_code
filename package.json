@@ -70,25 +70,7 @@
             {
                 "command": "digitaljs.start",
                 "title": "Start",
-                "icon": "$(run)",
-                "category": "DigitalJS"
-            },
-            {
-                "command": "digitaljs.fastForward",
-                "title": "Fast-forward",
-                "icon": "$(run-all)",
-                "category": "DigitalJS"
-            },
-            {
-                "command": "digitaljs.singleStep",
-                "title": "Single step",
-                "icon": "$(debug-step-over)",
-                "category": "DigitalJS"
-            },
-            {
-                "command": "digitaljs.nextEvent",
-                "title": "Run until next event",
-                "icon": "$(debug-continue)",
+                "icon": "$(debug-start)",
                 "category": "DigitalJS"
             },
             {
@@ -156,27 +138,12 @@
                 {
                     "command": "digitaljs.pause",
                     "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && digitaljs.view_running",
-                    "group": "navigation@1"
+                    "group": "navigation"
                 },
                 {
                     "command": "digitaljs.start",
                     "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
-                    "group": "navigation@2"
-                },
-                {
-                    "command": "digitaljs.fastForward",
-                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
-                    "group": "navigation@3"
-                },
-                {
-                    "command": "digitaljs.singleStep",
-                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
-                    "group": "navigation@4"
-                },
-                {
-                    "command": "digitaljs.nextEvent",
-                    "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running && digitaljs.view_pendingEvents",
-                    "group": "navigation@5"
+                    "group": "navigation"
                 }
             ],
             "explorer/context": [

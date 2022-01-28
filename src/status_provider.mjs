@@ -26,18 +26,28 @@ export class StatusProvider {
                     this.#djs.postPanelMessage({ command: 'iopanel:update',
                                                  id: msg.id, value: msg.value });
                     return;
+                case 'panel-cmd':
+                    this.#djs.postPanelMessage({ command: msg.panel_cmd });
+                    return;
             }
         });
-        const tick_listener = this.#djs.tickUpdated(async (tick) => {
+        const listeners = [];
+        listeners.push(this.#djs.tickUpdated(async (tick) => {
             queue.post({ command: 'tick', tick });
-        });
-        const iopanel_listener = this.#djs.iopanelMessage(async (message) => {
+        }));
+        listeners.push(this.#djs.iopanelMessage(async (message) => {
             queue.post(message);
-        });
+        }));
+        listeners.push(this.#djs.runStatesUpdated(async (state) => {
+            queue.post({ command: 'runstate', state });
+        }));
         view.onDidDispose(() => {
-            tick_listener.dispose();
-            iopanel_listener.dispose();
+            for (const listener of listeners) {
+                listener.dispose();
+            }
         });
+        const rs = this.#djs.runStates;
+        const enabled = b => b ? '' : 'disabled';
         view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,8 +58,36 @@ export class StatusProvider {
   <script type="module" src="${ui_uri}"></script>
   <script type="module" src="${status_uri}"></script>
   <link href="${icon_uri}" rel="stylesheet"/>
+  <style>
+     vscode-button[disabled].djs-start-stop-button {
+       display: none !important;
+     }
+     vscode-button[disabled] {
+       opacity: 25%;
+     }
+  </style>
 </head>
 <body style="display:flex;flex-direction:column;height:100vh">
+  <div style="flex-grow:0;flex-shrink:0;margin-bottom:4px">
+    <vscode-button id="start-sim" appearance="icon"
+                   class="djs-start-stop-button" ${enabled(!rs.running)}>
+      <i class="codicon codicon-run"></i>
+    </vscode-button>
+    <vscode-button id="pause-sim" appearance="icon"
+                   class="djs-start-stop-button" ${enabled(rs.running)}>
+      <i class="codicon codicon-debug-pause"></i>
+    </vscode-button>
+    <vscode-button id="fast-forward-sim" appearance="icon" ${enabled(!rs.running)}>
+      <i class="codicon codicon-run-all"></i>
+    </vscode-button>
+    <vscode-button id="single-step-sim" appearance="icon" ${enabled(!rs.running)}>
+      <i class="codicon codicon-debug-step-over"></i>
+    </vscode-button>
+    <vscode-button id="next-event-sim" appearance="icon"
+                   ${enabled(!rs.running && rs.pendingEvents)}>
+      <i class="codicon codicon-debug-continue"></i>
+    </vscode-button>
+  </div>
   <div style="flex-grow:0;flex-shrink:0;;margin-bottom:2px">
     <vscode-text-field id="clock" readonly value=${this.#djs.tick}>
       <i slot="start" class="codicon codicon-clock"></i>

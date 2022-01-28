@@ -65,6 +65,11 @@ class Status {
     #widgets
     #clock
     #iopanel
+    #start_btn
+    #pause_btn
+    #fast_forward_btn
+    #single_step_btn
+    #next_event_btn
     constructor() {
         window.addEventListener('message', event => this.#processMessage(event));
         window.addEventListener("load", () => this.#initialize());
@@ -75,6 +80,22 @@ class Status {
     #initialize() {
         this.#clock = $('#clock');
         this.#iopanel = $('#iopanel');
+        this.#start_btn = $('#start-sim');
+        this.#pause_btn = $('#pause-sim');
+        this.#fast_forward_btn = $('#fast-forward-sim');
+        this.#single_step_btn = $('#single-step-sim');
+        this.#next_event_btn = $('#next-event-sim');
+        const btn_cmd = (btn, panel_cmd) => {
+            btn.click(() => {
+                vscode.postMessage({ command: 'panel-cmd', panel_cmd });
+            });
+        };
+        btn_cmd(this.#start_btn, 'startsim');
+        btn_cmd(this.#pause_btn, 'pausesim');
+        btn_cmd(this.#fast_forward_btn, 'fastforwardsim');
+        btn_cmd(this.#single_step_btn, 'singlestepsim');
+        btn_cmd(this.#next_event_btn, 'nexteventsim');
+
         // Release the messages from the main extension
         vscode.postMessage({ command: 'initialized' });
         this.#updateWidgets(window.init_view);
@@ -198,6 +219,18 @@ class Status {
             case 'tick':
                 this.#clock.val(message.tick);
                 return;
+            case 'runstate': {
+                const state = message.state;
+                const ele_enabled = (ele, enable) => {
+                    ele.attr('disabled', enable ? null : true);
+                };
+                ele_enabled(this.#start_btn, !state.running);
+                ele_enabled(this.#pause_btn, state.running);
+                ele_enabled(this.#fast_forward_btn, !state.running);
+                ele_enabled(this.#single_step_btn, !state.running);
+                ele_enabled(this.#next_event_btn, !state.running && state.pendingEvents);
+                return;
+            }
             case 'iopanel:view':
                 this.#updateWidgets(message.view);
                 return;

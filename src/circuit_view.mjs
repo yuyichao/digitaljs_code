@@ -72,17 +72,17 @@ export class CircuitView {
   <div id="paper"></div>
   <div id="gutter_vert" class="gutter gutter-vertical"></div>
   <div id="monitorbox">
-    <div>
-      <vscode-button name="ppt_up" title="Increase pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
-      <vscode-button name="ppt_down" title="Decrease pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
+    <div style="margin-bottom:3px">
+      <vscode-button appearance="icon" name="ppt_up" title="Increase pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-add"></i></vscode-button>
+      <vscode-button appearance="icon" name="ppt_down" title="Decrease pixels per tick" disabled style="vertical-align: middle;"><i class="codicon codicon-dash"></i></vscode-button>
       <span style="color:var(--foreground);vertical-align:middle;">scale</span>
       <vscode-text-field name="scale" readonly style="vertical-align: middle;">
       </vscode-text-field>
-      <vscode-button name="live" title="Pause plot" disabled style="vertical-align: middle;"><i class="codicon codicon-debug-pause"></i></vscode-button>
-      <vscode-button name="left" title="Move left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
-      <vscode-button name="right" title="Move right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
+      <vscode-button appearance="icon" name="live" title="Pause plot" disabled style="vertical-align: middle;"><i class="codicon codicon-debug-pause"></i></vscode-button>
+      <vscode-button appearance="icon" name="left" title="Move left" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-left"></i></vscode-button>
+      <vscode-button appearance="icon" name="right" title="Move right" disabled style="vertical-align: middle;"><i class="codicon codicon-arrow-small-right"></i></vscode-button>
     </div>
-    <div>
+    <div style="margin-bottom:2px">
       <span style="color:var(--foreground);vertical-align:middle;">range</span>
       <vscode-text-field name="rangel" readonly style="vertical-align: middle;">
       </vscode-text-field>

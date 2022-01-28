@@ -265,7 +265,7 @@
         "stream-browserify": "^3.0.0",
         "util": "^0.12.4",
         "wavecanvas": "github:tilk/wavecanvas",
-        "yosys2digitaljs": "github:yuyichao/yosys2digitaljs",
+        "yosys2digitaljs": "github:tilk/yosys2digitaljs",
         "yosysjs": "github:yuyichao/yosysjs"
     }
 }

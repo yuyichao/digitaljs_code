@@ -94,14 +94,7 @@ export async function run_yosys(files, options) {
     const yosys = new Yosys();
     await yosys.init();
     const obj = yosys.process_files(files, options);
-    const portmaps = yosys2digitaljs.order_ports(obj);
-    const out = yosys2digitaljs.yosys_to_digitaljs(obj, portmaps, options);
-    const toporder = yosys2digitaljs.topsort(yosys2digitaljs.module_deps(obj));
-    toporder.pop();
-    const toplevel = toporder.pop();
-    let output = { subcircuits: {}, ... out[toplevel] };
-    for (const x of toporder)
-        output.subcircuits[x] = out[x];
+    let output = yosys2digitaljs.yosys2digitaljs(obj, options);
     yosys2digitaljs.io_ui(output);
     if (options.transform)
         output = digitaljs_transform.transformCircuit(output);

@@ -205,10 +205,10 @@
                 {
                     "id": "digitaljs-proj-status",
                     "type": "webview",
-                    "name": "Status",
+                    "name": "Control",
                     "icon": "$(info)",
                     "when": "digitaljs.view_isactive",
-                    "contextualTitle": "DigitalJS Status"
+                    "contextualTitle": "DigitalJS Control"
                 }
             ]
         }

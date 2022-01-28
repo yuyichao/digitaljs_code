@@ -401,7 +401,7 @@ class DigitalJS {
             for (const listener of listeners)
                 listener.dispose();
             const was_active = this.#circuitView === circuit_view;
-            unlink_view(this.#circuitView);
+            unlink_view(circuit_view);
             if (was_active) {
                 post_switch();
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);

@@ -364,7 +364,7 @@ class DigitalJS {
         };
         const switch_document = (d, v) => {
             if (this.#circuitView === v)
-                return false;
+                return;
             // v may or may not be linked in yet, check that first before unlinking.
             // v isn't the lates one so if it's linked in it must have a next.
             if (v._djs_next_view)
@@ -372,12 +372,18 @@ class DigitalJS {
             link_view(d, v);
 
             post_switch();
-            return true;
         };
+        let prev_active = false;
         const on_view_state = () => {
             const panel = circuit_view.panel;
-            if (panel.active) {
-                if (switch_document(document, circuit_view))
+            const active = panel.active;
+            if (active) {
+                switch_document(document, circuit_view);
+                // Don't switch to the digitaljs side panel if we are just
+                // switching columns (or getting this event for other reasons).
+                // Do switch to it if the view was hidden even if we are the previous
+                // active one though.
+                if (!prev_active)
                     vscode.commands.executeCommand('digitaljs-proj-files.focus');
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
             }
@@ -385,6 +391,7 @@ class DigitalJS {
                 // Keep the last active document active in the side bars.
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             }
+            prev_active = active;
         };
         circuit_view.onDidChangeViewState(on_view_state);
         on_view_state();

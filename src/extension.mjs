@@ -463,7 +463,7 @@ class DigitalJS {
     #openViewJSON(uri) {
         const active_editor = vscode.window.activeTextEditor;
         const active_uri = active_editor ? active_editor.document.uri : undefined;
-        if (uri.toString() == active_uri.toString())
+        if (active_uri && uri.toString() == active_uri.toString())
             vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
     }

@@ -109,7 +109,7 @@ class DigitalJS {
                                                 command: 'startsim' })));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.newJSON',
-                                            () => this.#newJSON()));
+                                            () => this.#newJSON(this.doc_uri)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.addFiles',
                                             () => this.#addFiles()));
@@ -378,7 +378,7 @@ class DigitalJS {
         circuit_view.onDidDispose(() => {
             const uri = document.uri;
             if (uri.scheme === 'untitled') {
-                const m = uri.path.match(/^circuit-(\d*)\.json$/);
+                const m = uri.path.match(/\/circuit-(\d*)\.json$/);
                 if (m) {
                     this.#untitled_tracker.free(parseInt(m[1]));
                 }
@@ -407,13 +407,45 @@ class DigitalJS {
         }
     }
 
-    #newJSON() {
+    #findWorkspacePath(hint) {
+        // Try to find a workspace uri best match with the hint uri.
+        if (vscode.workspace.workspaceFolders) {
+            // Skip searching for length == 1 case
+            // since we'll use the first one anyway...
+            if (vscode.workspace.workspaceFolders.length > 0 && hint && hint.path)
+                for (const workdir of vscode.workspace.workspaceFolders) {
+                    const uri = workdir.uri;
+                    if (hint.scheme !== uri.scheme || hint.authority !== uri.authority || !path)
+                        continue;
+                    // check if it's a subpath
+                    let dir_path = uri.path;
+                    if (!dir_path.endsWith('/'))
+                        dir_path = dir_path + '/';
+                    if (hint.path.startsWith(dir_path)) {
+                        return uri.path;
+                    }
+                }
+            // If we can't find a match, use the first one...
+            if (vscode.workspace.workspaceFolders.length > 0) {
+                return vscode.workspace.workspaceFolders[0].uri.path;
+            }
+        }
+        return '/';
+    }
+    #newJSON(hint) {
         // The command "workbench.action.files.newUntitledFile"
         // can also be used to open a new circuit but it doesn't allow
         // adding a hint for the filename AFAICT.
         const id = this.#untitled_tracker.alloc();
-        const uri_str = `untitled:circuit-${id}.json`;
-        this.#openViewJSON(vscode.Uri.parse(uri_str));
+        // It seems that providing a path for the untitled uri
+        // will give the file picking widget a hint of where to save the file.
+        // This is important for the web version where only certain path are valid
+        // and the default one, however that is determined, may not be.
+        const uri = vscode.Uri.from({ path: path.join(this.#findWorkspacePath(hint),
+                                                      `circuit-${id}.json`),
+                                      scheme: 'untitled' });
+        const uri_str = uri.toString();;
+        this.#openViewJSON(uri);
         return uri_str;
     }
     async #addFiles() {
@@ -469,7 +501,7 @@ class DigitalJS {
             // This way we can at least avoid action-at-a-distance kind of issues
             // where the sources that failed to be added get added later to
             // an unrelated document.
-            this.#pendingSources.push({ uri, doc_uri: this.#newJSON() });
+            this.#pendingSources.push({ uri, doc_uri: this.#newJSON(uri) });
         }
     }
     async #openView() {
@@ -480,7 +512,7 @@ class DigitalJS {
         const new_or_active = () => {
             if (this.#circuitView)
                 return this.#circuitView.reveal();
-            this.#newJSON();
+            this.#newJSON(uri);
         };
         // No active editor (or files of type we don't recognize, see below)
         // Switch to the latest view or open a new one.
@@ -504,7 +536,7 @@ class DigitalJS {
             // Check circuitView again in case it was just closed
             if (new_circuit && this.#circuitView)
                 return this.#circuitView.reveal();
-            return this.#newJSON();
+            return this.#newJSON(uri);
         }
         else if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
             // Source file already in current document.

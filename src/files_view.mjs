@@ -9,12 +9,15 @@ import { rel_compat2 } from './utils.mjs';
 class CircuitFile extends vscode.TreeItem {
     constructor(uri) {
         let name = 'Unnamed circuit';
-        if (uri) {
-            if (uri.scheme === 'untitled')
-                name = uri.toString();
-            else {
-                // in case basename is empty.
-                name = path.basename(uri.path) || name;
+        if (uri && uri.path) {
+            const filename = path.basename(uri.path);
+            if (filename) {
+                if (uri.scheme === 'untitled') {
+                    name = 'untitled:' + filename;
+                }
+                else {
+                    name = filename;
+                }
             }
         }
         super(name, vscode.TreeItemCollapsibleState.Expanded);

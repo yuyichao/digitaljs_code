@@ -123,8 +123,11 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.openViewJSON',
                                             (item) => this.#openViewJSON(item)));
         context.subscriptions.push(
-            vscode.commands.registerCommand('digitaljs.openViewSource',
+            vscode.commands.registerCommand('digitaljs.addToViewSource',
                                             (item) => this.#openViewSource(item)));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.newViewSource',
+                                            (item) => this.#openViewSource(item, true)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.revealCircuit',
                                             () => this.#revealCircuit()));

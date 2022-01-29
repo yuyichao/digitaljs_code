@@ -28,7 +28,8 @@
         "onCustomEditor:digitaljs.circuitView",
         "onCommand:digitaljs.openView",
         "onCommand:digitaljs.openViewJSON",
-        "onCommand:digitaljs.openViewSource",
+        "onCommand:digitaljs.addToViewSource",
+        "onCommand:digitaljs.newViewSource",
         "onCommand:digitaljs.newJSON",
         "onCommand:digitaljs.addFiles",
         "onCommand:digitaljs.removeSource"
@@ -50,8 +51,14 @@
                 "category": "DigitalJS"
             },
             {
-                "command": "digitaljs.openViewSource",
+                "command": "digitaljs.addToViewSource",
                 "title": "Add to DigitalJS",
+                "icon": "imgs/digitaljs.svg",
+                "category": "DigitalJS"
+            },
+            {
+                "command": "digitaljs.newViewSource",
+                "title": "Create circuit in DigitalJS",
                 "icon": "imgs/digitaljs.svg",
                 "category": "DigitalJS"
             },
@@ -153,9 +160,14 @@
                     "group": "navigation@99999"
                 },
                 {
-                    "command": "digitaljs.openViewSource",
-                    "when": "resourceExtname == .sv || resourceExtname == .v || resourceExtname == .vh || resourceExtname == .lua",
+                    "command": "digitaljs.addToViewSource",
+                    "when": "digitaljs.view_isactive && resourceExtname =~ /^\\.sv$|^\\.v$|^\\.vh$|^\\.lua$/",
                     "group": "navigation@99999"
+                },
+                {
+                    "command": "digitaljs.newViewSource",
+                    "when": "resourceExtname =~ /^\\.sv$|^\\.v$|^\\.vh$|^\\.lua$/",
+                    "group": "navigation@100000"
                 }
             ],
             "view/item/context": [

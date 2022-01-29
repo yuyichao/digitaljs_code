@@ -526,8 +526,8 @@ class DigitalJS {
             vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
     }
-    #openViewSource(uri) {
-        if (this.#circuitView) {
+    #openViewSource(uri, force_new) {
+        if (this.#circuitView && !force_new) {
             this.#circuitView.reveal();
             this.#document.addSources([uri]);
         }
@@ -581,20 +581,29 @@ class DigitalJS {
             // Source file already in current document.
             if (this.#document && this.#document.sources.findByURI(uri))
                 return this.#circuitView.reveal();
-            const new_circuit = !this.#circuitView;
-            const res = await vscode.window.showInformationMessage(
-                `Add ${uri.path} to ${new_circuit ? 'a new' : 'current'} circuit?`, 'Yes', 'No');
-            if (!res) // Cancelled
-                return;
-            // It's possible that a circuit was just openned or closed
-            // and we aren't doing exactly what we said we were going to do in the popup
-            // but I'm too lazy to check for that...
-            if (res !== 'Yes')
-                // If we are not adding the source file,
-                // treat it the same as a non-source file
-                // and create a project in the workspace directory if possible.
-                return new_or_active();
-            this.#openViewSource(uri);
+            if (this.#circuitView) {
+                const res = await vscode.window.showInformationMessage(
+                    `Add ${uri.path} to?`, 'Current Circuit', 'New Circuit');
+                if (!res) // Cancelled
+                    return;
+                this.#openViewSource(uri, res !== 'Add');
+            }
+            else {
+                const res = await vscode.window.showInformationMessage(
+                    `Add ${uri.path} to a new circuit?`, 'Yes', 'No');
+                if (!res) // Cancelled
+                    return;
+                if (res !== 'Yes') {
+                    // If we are not adding the source file,
+                    // treat it the same as a non-source file
+                    // and create a project in the workspace directory if possible.
+                    this.#newJSON(uri, true);
+                }
+                else {
+                    // Force adding to new circuit since that's what the user has confirmed.
+                    this.#openViewSource(uri, true);
+                }
+            }
         }
         else {
             new_or_active();

@@ -2,7 +2,7 @@
     "name": "digitaljs",
     "displayName": "DigitalJS",
     "description": "DigitalJS integration for VS Code",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "yuyichao",
     "repository": {

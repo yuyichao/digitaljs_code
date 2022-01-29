@@ -18,6 +18,35 @@ export function activate(context) {
 export function deactivate() {
 }
 
+function active_editor_uri() {
+    const active_editor = vscode.window.activeTextEditor;
+    return active_editor ? active_editor.document.uri : undefined;
+}
+
+function find_workspace_uri(hint, workspaceFolders) {
+    // Assume that workspaceFolders isn't empty.
+
+    // Try to find a workspace uri best match with the hint uri.
+    // Skip searching for length == 1 case
+    // since we'll use the first one anyway...
+    if (workspaceFolders.length > 1 && hint && hint.path) {
+        for (const workdir of workspaceFolders) {
+            const uri = workdir.uri;
+            if (hint.scheme !== uri.scheme || hint.authority !== uri.authority || !path)
+                continue;
+            // check if it's a subpath
+            let dir_path = uri.path;
+            if (!dir_path.endsWith('/'))
+                dir_path = dir_path + '/';
+            if (hint.path.startsWith(dir_path)) {
+                return uri;
+            }
+        }
+    }
+    // If we can't find a match, use the first one...
+    return vscode.workspace.workspaceFolders[0].uri;
+}
+
 // I'm not sure how to supply a extension to untitled document
 // while having vscode automatically pick up an unused document title for us
 // so I think I'll need to calculate the file names myself.
@@ -109,7 +138,7 @@ class DigitalJS {
                                                 command: 'startsim' })));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.newJSON',
-                                            () => this.#newJSON(this.doc_uri)));
+                                            () => this.#newJSON(this.doc_uri, false)));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.addFiles',
                                             () => this.#addFiles()));
@@ -407,43 +436,57 @@ class DigitalJS {
         }
     }
 
-    #findWorkspacePath(hint) {
-        // Try to find a workspace uri best match with the hint uri.
-        if (vscode.workspace.workspaceFolders) {
-            // Skip searching for length == 1 case
-            // since we'll use the first one anyway...
-            if (vscode.workspace.workspaceFolders.length > 0 && hint && hint.path)
-                for (const workdir of vscode.workspace.workspaceFolders) {
-                    const uri = workdir.uri;
-                    if (hint.scheme !== uri.scheme || hint.authority !== uri.authority || !path)
-                        continue;
-                    // check if it's a subpath
-                    let dir_path = uri.path;
-                    if (!dir_path.endsWith('/'))
-                        dir_path = dir_path + '/';
-                    if (hint.path.startsWith(dir_path)) {
-                        return uri.path;
-                    }
-                }
-            // If we can't find a match, use the first one...
-            if (vscode.workspace.workspaceFolders.length > 0) {
-                return vscode.workspace.workspaceFolders[0].uri.path;
-            }
-        }
-        return '/';
-    }
-    #newJSON(hint) {
+    #newJSON(hint, use_workspace) {
+        hint = hint || active_editor_uri();
         // The command "workbench.action.files.newUntitledFile"
         // can also be used to open a new circuit but it doesn't allow
         // adding a hint for the filename AFAICT.
+
+        // When using a untitled: URI, vscode uses the components from the URI to determine
+        // the default URI when saving.
+        // In particular, the path will show up in the save dialog
+        // and the authority will be exactly the same as the one in the untitled URI.
+        // For the web version of vscode, not setting the autority correctly (or at all)
+        // can make the file virtually unsavable and not setting the path can also make
+        // the file difficult to save since not all paths are valid.
+        // Note that text editors don't have this problem since the save function
+        // for it uses FileDialogService::defaultFilePath to figure out the right URI to use
+        // which takes care of this.
+
+        // For this reason, we'll try our best to find a real URI in order to
+        // make our file savable. There are other extensions which may add custom URI schemes
+        // but hopefully we can either save with it or we won't run into them...
+        // If we really can't find anything, we'll ignore the path/authrity and hope that
+        // we'll only encounter it in a setting when we don't need them...
+        // We'll also ignore the fragment and query part of the URI for now.
+        // It shouldn't be needed for all the cases I'm aware of and we'll decide if
+        // we need to include them or strip them when we find a real case.
+        // Stripping them for now should hopefully be the least risky.
         const id = this.#untitled_tracker.alloc();
-        // It seems that providing a path for the untitled uri
-        // will give the file picking widget a hint of where to save the file.
-        // This is important for the web version where only certain path are valid
-        // and the default one, however that is determined, may not be.
-        const uri = vscode.Uri.from({ path: path.join(this.#findWorkspacePath(hint),
-                                                      `circuit-${id}.json`),
-                                      scheme: 'untitled' });
+        const name = `circuit-${id}.json`;
+        const workspaceFolders = vscode.workspace.workspaceFolders
+        if (!hint)
+            use_workspace = true;
+        if (!workspaceFolders || workspaceFolders.length == 0)
+            use_workspace = false;
+
+        let uri;
+        if (!use_workspace && hint) {
+            uri = vscode.Uri.from({ scheme: 'untitled', authority: hint.authority,
+                                    path: path.join(path.dirname(hint.path), name) });
+        }
+        else if (use_workspace) {
+            const dir_uri = find_workspace_uri(hint, workspaceFolders);
+            uri = vscode.Uri.from({ scheme: 'untitled', authority: dir_uri.authority,
+                                    path: path.join(dir_uri.path, name) });
+        }
+        else {
+            // If we reached here, we know that there isn't any hint
+            // (or we'd have either used that or use it to find a workspace)
+            // or workspace folders (or !hint would have forced the use of it)
+            // so let's just use the most minimum uri in this case...
+            uri = vscode.Uri.from({ scheme: 'untitled', path: name });
+        }
         const uri_str = uri.toString();;
         this.#openViewJSON(uri);
         return uri_str;
@@ -478,8 +521,7 @@ class DigitalJS {
         }
     }
     #openViewJSON(uri) {
-        const active_editor = vscode.window.activeTextEditor;
-        const active_uri = active_editor ? active_editor.document.uri : undefined;
+        const active_uri = active_editor_uri();
         if (active_uri && uri.toString() == active_uri.toString())
             vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
@@ -501,18 +543,15 @@ class DigitalJS {
             // This way we can at least avoid action-at-a-distance kind of issues
             // where the sources that failed to be added get added later to
             // an unrelated document.
-            this.#pendingSources.push({ uri, doc_uri: this.#newJSON(uri) });
+            this.#pendingSources.push({ uri, doc_uri: this.#newJSON(uri, false) });
         }
     }
     async #openView() {
-        const active_editor = vscode.window.activeTextEditor;
-        let uri;
-        if (active_editor)
-            uri = active_editor.document.uri;
+        const uri = active_editor_uri();
         const new_or_active = () => {
             if (this.#circuitView)
                 return this.#circuitView.reveal();
-            this.#newJSON(uri);
+            this.#newJSON(uri, true);
         };
         // No active editor (or files of type we don't recognize, see below)
         // Switch to the latest view or open a new one.
@@ -536,7 +575,7 @@ class DigitalJS {
             // Check circuitView again in case it was just closed
             if (new_circuit && this.#circuitView)
                 return this.#circuitView.reveal();
-            return this.#newJSON(uri);
+            return this.#newJSON(uri, false);
         }
         else if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
             // Source file already in current document.
@@ -551,6 +590,9 @@ class DigitalJS {
             // and we aren't doing exactly what we said we were going to do in the popup
             // but I'm too lazy to check for that...
             if (res !== 'Yes')
+                // If we are not adding the source file,
+                // treat it the same as a non-source file
+                // and create a project in the workspace directory if possible.
                 return new_or_active();
             this.#openViewSource(uri);
         }

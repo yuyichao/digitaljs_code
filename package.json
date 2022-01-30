@@ -117,6 +117,16 @@
                 "displayName": "DigitalJS",
                 "selector": [
                     {
+                        "filenamePattern": "*.digitaljs"
+                    }
+                ],
+                "priority": "default"
+            },
+            {
+                "viewType": "digitaljs.circuitView_json",
+                "displayName": "DigitalJS",
+                "selector": [
+                    {
                         "filenamePattern": "*.json"
                     }
                 ],
@@ -156,7 +166,7 @@
             "explorer/context": [
                 {
                     "command": "digitaljs.openViewJSON",
-                    "when": "resourceExtname == .json",
+                    "when": "resourceExtname == .json || resourceExtname == .digitaljs",
                     "group": "navigation@99999"
                 },
                 {

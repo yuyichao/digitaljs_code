@@ -9,6 +9,7 @@ import { read_txt_file } from './utils.mjs';
 
 export class EditorProvider {
     static viewType = 'digitaljs.circuitView'
+    static viewType_json = 'digitaljs.circuitView_json'
     #djs
     onDidChangeCustomDocument
     #onDidChangeCustomDocument

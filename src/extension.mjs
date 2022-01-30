@@ -177,6 +177,16 @@ class DigitalJS {
                 }
         ));
 
+        context.subscriptions.push(
+            vscode.window.registerCustomEditorProvider(
+                EditorProvider.viewType_json,
+                new EditorProvider(this),
+                {
+                    webviewOptions: { retainContextWhenHidden: true },
+                    supportsMultipleEditorsPerDocument: false,
+                }
+        ));
+
         context.subscriptions.push(this);
 
         this.runStatesUpdated((states) => {
@@ -410,7 +420,7 @@ class DigitalJS {
         circuit_view.onDidDispose(() => {
             const uri = document.uri;
             if (uri.scheme === 'untitled') {
-                const m = uri.path.match(/\/circuit-(\d*)\.json$/);
+                const m = uri.path.match(/\/circuit-(\d*)\.digitaljs$/);
                 if (m) {
                     this.#untitled_tracker.free(parseInt(m[1]));
                 }
@@ -466,7 +476,7 @@ class DigitalJS {
         // we need to include them or strip them when we find a real case.
         // Stripping them for now should hopefully be the least risky.
         const id = this.#untitled_tracker.alloc();
-        const name = `circuit-${id}.json`;
+        const name = `circuit-${id}.digitaljs`;
         const workspaceFolders = vscode.workspace.workspaceFolders
         if (!hint)
             use_workspace = true;
@@ -565,6 +575,9 @@ class DigitalJS {
         if (exist_view)
             return exist_view.reveal();
         const ext = path.extname(uri.path);
+        if (ext == '.digitaljs') {
+            return this.#openViewJSON(uri);
+        }
         if (ext == '.json') {
             // For json files, ask if the user want to open
             const new_circuit = !this.#circuitView;

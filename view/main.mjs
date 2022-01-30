@@ -6,6 +6,7 @@ import './scss/app.scss';
 import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
+import * as htmlToImage from 'html-to-image';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
@@ -188,6 +189,38 @@ class DigitalJS {
             case 'stoplua':
                 this.#lua.stop(message.name);
                 return;
+            case 'exportimage': {
+                const post_reply = (data, base64) => {
+                    vscode.postMessage({ command: "saveimg", data, base64, uri: message.uri });
+                };
+                const post_error = (message) => {
+                    vscode.postMessage({ command: "saveimg-error", uri: message.uri, message });
+                };
+                if (!this.circuit)
+                    return post_error('No active circuit');
+                const ele = $('#paper > .joint-paper > svg')[0];
+                try {
+                    // The svg from this isn't really supported in most other programs
+                    // due to the embedded html elements.
+                    // if (message.type == 'image/svg') {
+                    //     const svg = await htmlToImage.toSvg(ele, { plainSvg: true });
+                    //     return post_reply(svg, false);
+                    // }
+                    // XXX: Hardcode pixel ratio for now.
+                    //      I'm not sure yet what's the best way to determine this...
+                    const canvas = await htmlToImage.toCanvas(ele, { pixelRatio: 4 });
+                    const t = message.type;
+                    const dataurl = canvas.toDataURL(t, 1);
+                    const prefix = `data:${t};base64,`;
+                    if (!dataurl.startsWith(prefix))
+                        return post_error(`Unsupported image type ${t}`);
+                    return post_reply(dataurl.substring(prefix.length), true);
+                }
+                catch (e) {
+                    console.error(e);
+                    return post_error('Unknown error');
+                }
+            }
         }
     }
 

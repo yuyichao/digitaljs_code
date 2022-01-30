@@ -146,6 +146,9 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.addFiles',
                                             () => this.#addFiles()));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.exportImage',
+                                            () => this.#exportImage()));
+        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.removeSource',
                                             (item) => this.#removeSource(item)));
         context.subscriptions.push(
@@ -524,6 +527,32 @@ class DigitalJS {
         if (!files)
             return;
         document.addSources(files);
+    }
+    async #exportImage() {
+        // The SVG exported contains foreigh object and most reader don't really like it.
+        const file = await vscode.window.showSaveDialog({
+            filters: {
+                "Images": ['png', 'jpg', 'jpeg'],
+            },
+            openLabel: 'Export',
+            title: 'Export circuit image',
+        });
+        if (!file)
+            return;
+        const ext = path.extname(file.path).toLowerCase();
+        let img_type;
+        if (ext === '.png') {
+            img_type = 'image/png';
+        }
+        else if (ext === '.jpg' || ext === '.jpeg') {
+            img_type = 'image/jpeg';
+        }
+        else {
+            return vscode.window.showErrorMessage(
+                `Unable to save image ${message.uri}: unknown extension ${ext}`);
+        }
+        this.postPanelMessage({ command: 'exportimage',
+                                type: img_type, uri: file.toString() });
     }
     #removeSource(item) {
         if (!this.#document)

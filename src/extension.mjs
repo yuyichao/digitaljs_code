@@ -512,6 +512,8 @@ class DigitalJS {
             canSelectFiles: true,
             canSelectFolders: false,
             canSelectMany: true,
+            openLabel: 'Add',
+            title: 'Add Sources',
             filters: {
                 "SystemVerilog": ['sv'],
                 "Verilog": ['v'],

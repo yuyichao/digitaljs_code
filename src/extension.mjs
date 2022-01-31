@@ -529,8 +529,13 @@ class DigitalJS {
         document.addSources(files);
     }
     async #exportImage() {
+        if (!this.#document)
+            return;
+        const defaultUri = this.doc_dir_uri ? vscode.Uri.joinPath(this.doc_dir_uri,
+                                                                  'circuit.png') : undefined;
         // The SVG exported contains foreigh object and most reader don't really like it.
         const file = await vscode.window.showSaveDialog({
+            defaultUri,
             filters: {
                 "Images": ['png', 'jpg', 'jpeg'],
             },

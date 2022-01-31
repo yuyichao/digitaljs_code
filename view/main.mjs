@@ -6,7 +6,7 @@ import './scss/app.scss';
 import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
-import * as htmlToImage from 'html-to-image';
+import * as svgutils from './svgutils.mjs';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
@@ -206,9 +206,7 @@ class DigitalJS {
                     //     const svg = await htmlToImage.toSvg(ele, { plainSvg: true });
                     //     return post_reply(svg, false);
                     // }
-                    // XXX: Hardcode pixel ratio for now.
-                    //      I'm not sure yet what's the best way to determine this...
-                    const canvas = await htmlToImage.toCanvas(ele, { pixelRatio: 4 });
+                    const canvas = await svgutils.canvas(ele);
                     const t = message.type;
                     const dataurl = canvas.toDataURL(t, 1);
                     const prefix = `data:${t};base64,`;

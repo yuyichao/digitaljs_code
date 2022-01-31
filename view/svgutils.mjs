@@ -2,8 +2,7 @@
 
 'use strict';
 
-function get_content_rect(svg) {
-    const svgrect = svg.getBoundingClientRect();
+function get_content_rect(svg, svgrect) {
     // jointjs's paper size is larger than the content size,
     // first figure out the content size and offset.
     let realrect;
@@ -127,8 +126,13 @@ function to_canvas(rect, img) {
 }
 
 export async function canvas(svg) {
-    const content_rect = get_content_rect(svg);
+    const svgrect = svg.getBoundingClientRect();
+    const content_rect = get_content_rect(svg, svgrect);
     if (!content_rect)
         return;
-    return to_canvas(content_rect, await to_image(cloneNode(svg)));
+    const cloned_svg = cloneNode(svg);
+    cloned_svg.setAttribute('width', `${svgrect.width}`);
+    cloned_svg.setAttribute('height', `${svgrect.height}`);
+    cloned_svg.setAttribute('viewBox', `0 0 ${svgrect.width} ${svgrect.height}`);
+    return to_canvas(content_rect, await to_image(cloned_svg));
 }

@@ -2,6 +2,8 @@
 
 'use strict';
 
+import $ from 'jquery';
+
 function get_content_rect(svg, svgrect) {
     // jointjs's paper size is larger than the content size,
     // first figure out the content size and offset.
@@ -28,12 +30,37 @@ function get_content_rect(svg, svgrect) {
 }
 
 // Copied and adapted from html-to-image
-function cloneNode(node, parent, in_foreign) {
+function replace_input(node, parent, opts) {
+    const text = document.createElementNS("http://www.w3.org/2000/svg", 'text');
+    parent.appendChild(text);
+    const input = $(node).find('input');
+    text.innerHTML = input.val();
+
+    const node_rect = node.getBoundingClientRect();
+    let transform = node.getAttribute('transform');
+    transform = `${transform || ''} translate(${node_rect.width / 2} ${node_rect.height / 2})`;
+    text.setAttribute('transform', transform);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('font-family', 'monospace');
+    text.setAttribute('fill', 'black'); // XXX: hard code for now...
+    const input_style = window.getComputedStyle(input[0]);
+    if (input_style.fontSize)
+        text.setAttribute('font-size', input_style.fontSize);
+    if (input_style.fontWeight)
+        text.setAttribute('font-weight', input_style.fontWeight);
+    return text;
+}
+
+function clone_node(node, parent, in_foreign, opts = {}) {
     // This is the only foreign object we care about AFAICT
     if (node.tagName == 'foreignObject') {
         if (!node.classList.contains('valinput'))
             return;
         in_foreign = true;
+        if (opts.replaceInput) {
+            return replace_input(node, parent, opts);
+        }
     }
 
     const cloned = node.cloneNode(false);
@@ -43,27 +70,40 @@ function cloneNode(node, parent, in_foreign) {
     if (node instanceof HTMLInputElement)
         cloned.setAttribute('value', node.value)
 
-    if (parent) {
-        parent.appendChild(cloned);
+    if (!in_foreign && opts.stripAttr && cloned.attributes) {
+        // Filter attribute names
+        const nattrs = cloned.attributes.length;
+        const to_remove = [];
+        for (let i = 0; i < nattrs; i++) {
+            const name = cloned.attributes[i].name;
+            if (name === 'class') { // we'll replace it with explicit styles
+                to_remove.push(name);
+            }
+            else if (name.startsWith('joint-')) {
+                to_remove.push(name);
+            }
+            else if (name === 'model-id' || name === 'data-type') {
+                // These are joint specific afaict
+                to_remove.push(name);
+            }
+        }
+        for (const name of to_remove) {
+            cloned.removeAttribute(name);
+        }
     }
-    else {
-        // Add to the DOM temporarily to get the default style
-        document.body.appendChild(cloned);
-    }
+
+    parent.appendChild(cloned);
 
     if (cloned instanceof Element)
-        cloneCSSStyle(node, cloned, in_foreign);
+        clone_css_style(node, cloned, in_foreign);
 
     for (const child of children)
-        cloneNode(child, cloned, in_foreign);
-
-    if (!parent)
-        document.body.removeChild(cloned);
+        clone_node(child, cloned, in_foreign, opts);
 
     return cloned;
 }
 
-function cloneCSSStyle(node, cloned, in_foreign) {
+function clone_css_style(node, cloned, in_foreign) {
     const source = window.getComputedStyle(node);
     const target_origin = window.getComputedStyle(cloned);
     const target = cloned.style
@@ -125,14 +165,41 @@ function to_canvas(rect, img) {
     return canvas;
 }
 
-export async function canvas(svg) {
-    const svgrect = svg.getBoundingClientRect();
-    const content_rect = get_content_rect(svg, svgrect);
+function clone_svg(svg, opts = { stripAttr: true, replaceInput: true }) {
+    // Add to the DOM temporarily to get the default style
+    const cloned_svg = clone_node(svg, document.body, false, opts);
+    const svgrect = cloned_svg.getBoundingClientRect();
+    const content_rect = get_content_rect(cloned_svg, svgrect);
+    document.body.removeChild(cloned_svg);
     if (!content_rect)
         return;
-    const cloned_svg = cloneNode(svg);
+
     cloned_svg.setAttribute('width', `${svgrect.width}`);
     cloned_svg.setAttribute('height', `${svgrect.height}`);
     cloned_svg.setAttribute('viewBox', `0 0 ${svgrect.width} ${svgrect.height}`);
-    return to_canvas(content_rect, await to_image(cloned_svg));
+    // Leave some clipping margin
+    content_rect.x -= 2;
+    content_rect.y -= 2;
+    content_rect.width += 4;
+    content_rect.height += 4;
+    return { svg: cloned_svg, rect: content_rect };
+}
+
+export function toSvg(svg) {
+    const res = clone_svg(svg);
+    if (!res)
+        return;
+    const { svg: cloned_svg, rect } = res;
+    cloned_svg.setAttribute('width', `${rect.width}`);
+    cloned_svg.setAttribute('height', `${rect.height}`);
+    cloned_svg.setAttribute('viewBox', `${rect.x} ${rect.y} ${rect.width} ${rect.height}`);
+    return new XMLSerializer().serializeToString(cloned_svg);
+}
+
+export async function toCanvas(svg) {
+    const res = clone_svg(svg);
+    if (!res)
+        return;
+    const { svg: cloned_svg, rect } = res;
+    return to_canvas(rect, await to_image(cloned_svg));
 }

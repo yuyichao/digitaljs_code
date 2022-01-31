@@ -200,13 +200,11 @@ class DigitalJS {
                     return post_error('No active circuit');
                 const ele = $('#paper > .joint-paper > svg')[0];
                 try {
-                    // The svg from this isn't really supported in most other programs
-                    // due to the embedded html elements.
-                    // if (message.type == 'image/svg') {
-                    //     const svg = await htmlToImage.toSvg(ele, { plainSvg: true });
-                    //     return post_reply(svg, false);
-                    // }
-                    const canvas = await svgutils.canvas(ele);
+                    if (message.type == 'image/svg') {
+                        const svg = svgutils.toSvg(ele);
+                        return post_reply(svg, false);
+                    }
+                    const canvas = await svgutils.toCanvas(ele);
                     const t = message.type;
                     const dataurl = canvas.toDataURL(t, 1);
                     const prefix = `data:${t};base64,`;

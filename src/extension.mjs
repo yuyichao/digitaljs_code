@@ -533,11 +533,10 @@ class DigitalJS {
             return;
         const defaultUri = this.doc_dir_uri ? vscode.Uri.joinPath(this.doc_dir_uri,
                                                                   'circuit.png') : undefined;
-        // The SVG exported contains foreigh object and most reader don't really like it.
         const file = await vscode.window.showSaveDialog({
             defaultUri,
             filters: {
-                "Images": ['png', 'jpg', 'jpeg'],
+                "Images": ['svg', 'png', 'jpg', 'jpeg'],
             },
             openLabel: 'Export',
             title: 'Export circuit image',
@@ -548,6 +547,9 @@ class DigitalJS {
         let img_type;
         if (ext === '.png') {
             img_type = 'image/png';
+        }
+        else if (ext === '.svg') {
+            img_type = 'image/svg';
         }
         else if (ext === '.jpg' || ext === '.jpeg') {
             img_type = 'image/jpeg';

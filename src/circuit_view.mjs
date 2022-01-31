@@ -66,6 +66,11 @@ export class CircuitView {
   <script type="module" src="${ui_uri}"></script>
   <link href="${icon_uri}" rel="stylesheet"/>
   <title>DigitalJS Code</title>
+  <style>
+    html > body, foreignObject > body {
+      padding: 0 0;
+    }
+  </style>
 </head>
 <body>
 <div id="grid">

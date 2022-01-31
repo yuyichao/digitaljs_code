@@ -43,12 +43,12 @@ function replace_input(node, parent, opts) {
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('font-family', 'monospace');
-    text.setAttribute('fill', 'black'); // XXX: hard code for now...
     const input_style = window.getComputedStyle(input[0]);
     if (input_style.fontSize)
         text.setAttribute('font-size', input_style.fontSize);
     if (input_style.fontWeight)
         text.setAttribute('font-weight', input_style.fontWeight);
+    text.setAttribute('fill', input_style.color || 'black');
     return text;
 }
 

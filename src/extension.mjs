@@ -337,8 +337,12 @@ class DigitalJS {
             this.#tickUpdated.fire(tick);
         }));
         listeners.push(document.showMarker((editor_markers) => {
-            if (document !== this.#document)
-                return;
+            // No need to check if it's the current document
+            // Markers from other visible but not active views should be shown as well
+            // This can happen since mouse hovering doesn't switch focus by default.
+            // (of course this doesn't really work if we have more than one cursor
+            // but quite a few other things (like the mouse event tracking) doesn't work
+            // either...)
             this.#processMarker(editor_markers);
         }));
         listeners.push(document.iopanelMessage((message) => {

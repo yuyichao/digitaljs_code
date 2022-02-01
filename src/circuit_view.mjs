@@ -102,8 +102,14 @@ export class CircuitView {
 </body>
 </html>`;
     }
-    reveal(column) {
-        this.#panel.reveal(column);
+    reveal() {
+        const col = this.#panel.viewColumn;
+        // If viewColumn doesn't contain a valid column number,
+        // vscode will attempt to show the view in the current column
+        // which will create a new view for the editor and messes everything up...
+        if (!col || col < 0)
+            return;
+        this.#panel.reveal(col);
     }
     post(msg) {
         this.#queue.post(msg);

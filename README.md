@@ -32,7 +32,7 @@ Contributions are welcome!
     * Trigger
     * Signal monitor and plotting.
 
-* Saving/backing up the circuit including the source file information in a portable format
+* __Saving/backing up__ the circuit including the source file information in a portable format
 
   (The relative paths of the source files are saved and so that the project can be fully
    restored on another machine as long as the source files are also packaged/copied with
@@ -47,10 +47,12 @@ Contributions are welcome!
 
 * __Exporting the synthesized circuit as vector (SVG) or raster images (PNG or JPEG)__.
 
-* Undo and redo all the changes on the circuit including but not limited to
+* __Undo and redo__ all the changes on the circuit including but not limited to
   resynthesize of the circuit and edits done from the graphic view of the circuit.
 
-* Highlighting the source code that matches certain circuit element in the graphic view.
+* __Highlighting the source code__ that matches certain circuit element in the graphic view.
+
+    This can be seen in the screenshot above.
 
 * Using `Lua` scripts to customize/seed the simulation
   (using [`digitaljs_lua`](https://github.com/tilk/digitaljs_lua))

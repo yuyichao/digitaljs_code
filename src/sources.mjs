@@ -328,6 +328,9 @@ export class Sources {
                 await vscode.window.showErrorMessage(`Synthesis error: ${error}`);
                 return;
             }
+            this.#script_running = {};
+            this.#script_not_running = {};
+            this.#postLoad();
             return res;
         });
     }

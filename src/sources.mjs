@@ -321,7 +321,7 @@ export class Sources {
             catch (e) {
                 const error = e.error;
                 if (error === undefined) {
-                    console.log(e);
+                    console.error(e);
                     await vscode.window.showErrorMessage(`Unknown yosys2digitaljs error.`);
                     return;
                 }

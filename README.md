@@ -1,3 +1,6 @@
+[![vscode marketspace](https://img.shields.io/badge/VS%20Code-DigitalJS-green)](https://marketplace.visualstudio.com/items?itemName=yuyichao.digitaljs)
+[![openvsx registry](https://img.shields.io/badge/Open%20VSX-DigitalJS-green)](https://open-vsx.org/extension/yuyichao/digitaljs)
+
 This is an extension that brings the
 [DigitalJS](https://github.com/tilk/digitaljs) digital logic simulator
 and the [yosys2digitaljs](https://github.com/tilk/yosys2digitaljs)

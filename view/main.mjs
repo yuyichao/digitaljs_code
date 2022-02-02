@@ -190,6 +190,9 @@ class DigitalJS {
         // Release the messages from the main extension
         // (though the run state update should've already realeased it...)
         vscode.postMessage({ command: 'initialized' });
+        if (window.getImageSupport) {
+            vscode.postMessage({ command: 'img-exts', exts: imgutils.supportedExts() });
+        }
     }
 
     async #processMessage(message) {

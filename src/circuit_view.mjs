@@ -21,7 +21,7 @@ export class CircuitView {
         this.onDidChangeViewState = this.#panel.onDidChangeViewState;
         this.#panel.webview.onDidReceiveMessage((msg) => {
             this.#queue.release();
-            this.#processCommand(msg);
+            this.#processCommand(djs, msg);
         });
         let circuit_listener = this.#document.circuitUpdated((run) => {
             this.#showCircuit(run, false);
@@ -47,7 +47,7 @@ export class CircuitView {
     init() {
         return this.#init;
     }
-    #processCommand(msg) {
+    #processCommand(djs, msg) {
         switch (msg.command) {
             case 'subcircuits':
                 this.#subcircuits = msg.subcircuits;
@@ -65,6 +65,9 @@ export class CircuitView {
                     return write_txt_file(uri, msg.data);
                 }
             }
+            case 'img-exts':
+                djs.image_exts = msg.exts;
+                return;
         }
         this.#document.processCommand(msg);
     }
@@ -86,6 +89,7 @@ export class CircuitView {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
+    window.getImageSupport = ${!djs.image_exts_set};
     window.simWorkerUri = URL.createObjectURL(new Blob([${JSON.stringify(worker_script)}], {type: 'test/javascript'}));
   </script>
   <script type="module" src="${js_uri}"></script>

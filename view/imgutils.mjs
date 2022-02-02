@@ -3,6 +3,7 @@
 'use strict';
 
 import $ from 'jquery';
+import { extension_formats } from '../lib/image_formats.mjs';
 
 function get_content_rect(svg, svgrect) {
     // jointjs's paper size is larger than the content size,
@@ -202,4 +203,27 @@ export async function toCanvas(svg) {
         return;
     const { svg: cloned_svg, rect } = res;
     return to_canvas(rect, await to_image(cloned_svg));
+}
+
+function check_format(canvas, format) {
+    const dataurl = canvas.toDataURL(format, 1);
+    return dataurl.startsWith(`data:${format};base64,`);
+}
+
+export function supportedExts() {
+    const support = {};
+    const canvas = document.createElement('canvas');
+    for (const format of Object.values(extension_formats)) {
+        if (format in support)
+            continue;
+        support[format] = check_format(canvas, format);
+    }
+    const exts = [];
+    for (const ext in extension_formats) {
+        const format = extension_formats[ext];
+        if (!support[format])
+            continue;
+        exts.push(ext.substring(1));
+    }
+    return exts;
 }

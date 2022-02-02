@@ -10,6 +10,7 @@ import { FilesView } from './files_view.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { read_txt_file, write_txt_file } from './utils.mjs';
+import { extension_formats } from '../lib/image_formats.mjs';
 
 export function activate(context) {
     new DigitalJS(context);
@@ -80,6 +81,8 @@ class DigitalJS {
     #editor_markers = {}
     #untitled_tracker
     #pendingSources = []
+    #image_exts_set = false
+    #image_exts = ['png', 'jpg', 'jpeg']
     constructor(context) {
         // Paths
         const ext_uri = context.extensionUri;
@@ -266,6 +269,13 @@ class DigitalJS {
         if (this.#document) {
             await this.#document.doSynth();
         }
+    }
+    set image_exts(exts) {
+        this.#image_exts_set = true;
+        this.#image_exts = ['svg', ...exts]; // SVG isn't part of the detection
+    }
+    get image_exts_set() {
+        return this.#image_exts_set;
     }
     postPanelMessage(msg) {
         if (!this.#circuitView)
@@ -569,7 +579,7 @@ class DigitalJS {
         const file = await vscode.window.showSaveDialog({
             defaultUri,
             filters: {
-                "Images (.svg, .png, .jpg, .jpeg)": ['svg', 'png', 'jpg', 'jpeg'],
+                [`Images (.${this.#image_exts.join(', .')})`]: this.#image_exts,
             },
             openLabel: 'Export',
             title: 'Export circuit image',
@@ -578,18 +588,15 @@ class DigitalJS {
             return;
         const ext = path.extname(file.path).toLowerCase();
         let img_type;
-        if (ext === '.png') {
-            img_type = 'image/png';
-        }
-        else if (ext === '.svg') {
+        if (ext === '.svg') {
             img_type = 'image/svg+xml';
         }
-        else if (ext === '.jpg' || ext === '.jpeg') {
-            img_type = 'image/jpeg';
-        }
         else {
-            return vscode.window.showErrorMessage(
-                `Unable to save image ${message.uri}: unknown extension ${ext}`);
+            img_type = extension_formats[ext];
+            if (!img_type) {
+                return vscode.window.showErrorMessage(
+                    `Unable to save image ${message.uri}: unknown extension ${ext}`);
+            }
         }
         const cmd = { command: 'exportimage',
                       type: img_type, uri: file.toString() }

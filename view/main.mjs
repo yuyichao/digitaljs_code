@@ -390,11 +390,15 @@ class DigitalJS {
             engine: digitaljs.engines.WorkerEngine,
             engineOptions: { workerURL: window.simWorkerUri },
             windowCallback: (type, div, close_cb, ...args) => {
-                const title = div.attr('title') || 'unknown subcircuit';
-                const svg = div.find('svg');
-                const id = this.#subcircuit_tracker.add(title, svg[0]);
+                let id;
+                if (type !== "Memory") {
+                    const title = div.attr('title') || 'unknown subcircuit';
+                    const svg = div.find('svg');
+                    id = this.#subcircuit_tracker.add(title, svg[0]);
+                }
                 return this.circuit._defaultWindowCallback(type, div, () => {
-                    this.#subcircuit_tracker.remove(id);
+                    if (id !== undefined)
+                        this.#subcircuit_tracker.remove(id);
                     close_cb();
                 }, ...args);
             }

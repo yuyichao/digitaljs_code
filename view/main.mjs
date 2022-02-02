@@ -234,7 +234,7 @@ class DigitalJS {
                     return post_error('No active circuit');
                 const export_image = async (ele) => {
                     try {
-                        if (message.type == 'image/svg') {
+                        if (message.type == 'image/svg+xml') {
                             const svg = imgutils.toSvg(ele);
                             return post_reply(svg, false);
                         }

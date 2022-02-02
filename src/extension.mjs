@@ -582,7 +582,7 @@ class DigitalJS {
             img_type = 'image/png';
         }
         else if (ext === '.svg') {
-            img_type = 'image/svg';
+            img_type = 'image/svg+xml';
         }
         else if (ext === '.jpg' || ext === '.jpeg') {
             img_type = 'image/jpeg';

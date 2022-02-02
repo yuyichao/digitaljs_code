@@ -38,8 +38,8 @@ Contributions are welcome!
    restored on another machine as long as the source files are also packaged/copied with
    the project/circuit file)
 
-  The saved file can be loaded in the [online version](https://digitaljs.tilk.eu/)
-  for simulation.
+  The saved file can be loaded again using this extension,
+  or in the [online version](https://digitaljs.tilk.eu/) for simulation.
 
 * Open the JSON circuit saved by the [online version](https://digitaljs.tilk.eu/)
   for simulation. Accepted extensions are either `.json` or `.digitaljs`.

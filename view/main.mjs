@@ -6,7 +6,7 @@ import './scss/app.scss';
 import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
-import * as svgutils from './svgutils.mjs';
+import * as imgutils from './imgutils.mjs';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
@@ -235,10 +235,10 @@ class DigitalJS {
                 const export_image = async (ele) => {
                     try {
                         if (message.type == 'image/svg') {
-                            const svg = svgutils.toSvg(ele);
+                            const svg = imgutils.toSvg(ele);
                             return post_reply(svg, false);
                         }
-                        const canvas = await svgutils.toCanvas(ele);
+                        const canvas = await imgutils.toCanvas(ele);
                         const t = message.type;
                         const dataurl = canvas.toDataURL(t, 1);
                         const prefix = `data:${t};base64,`;

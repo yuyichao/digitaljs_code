@@ -68,6 +68,9 @@ export class CircuitView {
             case 'img-exts':
                 djs.image_exts = msg.exts;
                 return;
+            case 'focus':
+                this.reveal();
+                return;
         }
         this.#document.processCommand(msg);
     }

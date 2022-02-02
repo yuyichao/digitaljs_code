@@ -188,6 +188,24 @@ class DigitalJS {
         });
         this.#updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
+
+        // When we got a click in the webview, vscode will not handle this event
+        // so it won't switch the focus to this editor.
+        // This can make it confusing when multiple circuits are openned
+        // (the size panel may be for a different circuit and
+        // the start/pause simulation button on the editor title bar won't be shown).
+        // Let's detect such events in the webview and tell the host to focus us.
+        // This also matches the behavior of a normal editor.
+        window.addEventListener('touchstart', () => {
+            vscode.postMessage({ command: 'focus' });
+        }, { capture: true, passive: true });
+        window.addEventListener('mousedown', () => {
+            vscode.postMessage({ command: 'focus' });
+        }, { capture: true, passive: true });
+        window.addEventListener('click', () => {
+            vscode.postMessage({ command: 'focus' });
+        }, { capture: true, passive: true });
+
         // Release the messages from the main extension
         // (though the run state update should've already realeased it...)
         vscode.postMessage({ command: 'initialized' });

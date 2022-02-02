@@ -306,9 +306,9 @@ class DigitalJS {
         const clear_marker = () => {
             vscode.postMessage({ command: "clearmarker" });
         };
-        paper.on('cell:mouseover', show_marker);
+        paper.on('cell:mouseenter', show_marker);
         paper.on('cell:pointerclick', show_marker); // Try to support touch
-        paper.on('cell:mouseout', clear_marker);
+        paper.on('cell:mouseleave', clear_marker);
         paper.on('blank:pointerclick', clear_marker); // Try to support touch
     }
     #queueCallback(ele, evt_type) {

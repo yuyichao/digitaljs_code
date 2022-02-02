@@ -6,6 +6,7 @@ import './scss/app.scss';
 import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
+import svgPanZoom from 'svg-pan-zoom';
 import * as imgutils from './imgutils.mjs';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
@@ -310,6 +311,29 @@ class DigitalJS {
         paper.on('cell:pointerclick', show_marker); // Try to support touch
         paper.on('cell:mouseleave', clear_marker);
         paper.on('blank:pointerclick', clear_marker); // Try to support touch
+
+        const panAndZoom = svgPanZoom(paper.svg, {
+            fit: false,
+            center: false,
+            dblClickZoomEnabled: false,
+            // zoomScaleSensitivity: 0.4,
+            panEnabled: false,
+            zoomEnabled: false,
+            onZoom: function(scale) {
+                // TODO
+                // currentScale = scale;
+            }
+        });
+
+        // Enable pan when a blank area is click (held) on
+        paper.on('blank:pointerdown', () => {
+            panAndZoom.enablePan();
+        });
+
+        // Disable pan when the mouse button is released
+        paper.on('cell:pointerup blank:pointerup', () => {
+            panAndZoom.disablePan();
+        });
     }
     #queueCallback(ele, evt_type) {
         const cid = ele.cid;

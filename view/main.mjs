@@ -266,7 +266,7 @@ class DigitalJS {
     }
 
     #registerMarkers(paper) {
-        paper.on('cell:mouseover', (cellView) => {
+        const show_marker = (cellView) => {
             let markers = [];
             const positions = cellView.model.get('source_positions');
             if (!positions)
@@ -283,10 +283,14 @@ class DigitalJS {
             if (markers.length) {
                 vscode.postMessage({ command: "showmarker", markers });
             }
-        });
-        paper.on('cell:mouseout', (cellView) => {
+        };
+        const clear_marker = () => {
             vscode.postMessage({ command: "clearmarker" });
-        });
+        };
+        paper.on('cell:mouseover', show_marker);
+        paper.on('cell:pointerclick', show_marker); // Try to support touch
+        paper.on('cell:mouseout', clear_marker);
+        paper.on('blank:pointerclick', clear_marker); // Try to support touch
     }
     #queueCallback(ele, evt_type) {
         const cid = ele.cid;

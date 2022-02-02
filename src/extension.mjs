@@ -522,10 +522,10 @@ class DigitalJS {
             openLabel: 'Add',
             title: 'Add Sources',
             filters: {
-                "SystemVerilog": ['sv'],
-                "Verilog": ['v'],
-                "Verilog HEX file": ['vh'],
-                "Lua script": ['lua'],
+                "SystemVerilog (.sv)": ['sv'],
+                "Verilog (.v)": ['v'],
+                "Verilog HEX file (.vh)": ['vh'],
+                "Lua script (.lua)": ['lua'],
             }
         });
         if (!files)
@@ -569,7 +569,7 @@ class DigitalJS {
         const file = await vscode.window.showSaveDialog({
             defaultUri,
             filters: {
-                "Images": ['svg', 'png', 'jpg', 'jpeg'],
+                "Images (.svg, .png, .jpg, .jpeg)": ['svg', 'png', 'jpg', 'jpeg'],
             },
             openLabel: 'Export',
             title: 'Export circuit image',

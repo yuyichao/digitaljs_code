@@ -14,6 +14,7 @@ import { RemoteIOPanel } from './iopanel.mjs';
 const vscode = acquireVsCodeApi();
 
 digitaljs.paperOptions.gridSize = 0.5;
+digitaljs.paperOptions.moveThreshold = 10;
 
 function circuit_empty(circuit) {
     if (!circuit)

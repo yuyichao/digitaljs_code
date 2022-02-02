@@ -126,6 +126,38 @@ class ChangeTracker {
     }
 }
 
+class SubCircuitTracker {
+    #count = 0
+    #subcircuits = {}
+    #refresh() {
+        vscode.postMessage({ command: "subcircuits", subcircuits: this.titles() });
+    }
+    clear() {
+        this.#count = 0;
+        this.#subcircuits = {};
+        this.#refresh();
+    }
+    add(title, svg) {
+        const id = ++this.#count;
+        this.#subcircuits[id] = { title, svg };
+        this.#refresh();
+        return id;
+    }
+    remove(id) {
+        delete this.#subcircuits[id];
+        this.#refresh();
+    }
+    find(id) {
+        return this.#subcircuits[id];
+    }
+    titles() {
+        const res = {};
+        for (const id in this.#subcircuits)
+            res[id] = this.#subcircuits[id].title;
+        return res;
+    }
+}
+
 class DigitalJS {
     #iopanel
     #monitor
@@ -134,10 +166,12 @@ class DigitalJS {
     #paper
     #lua
     #change_tracker
+    #subcircuit_tracker
     constructor() {
         this.circuit = undefined;
         this.#lua = new LuaRunner(this);
         this.#change_tracker = new ChangeTracker();
+        this.#subcircuit_tracker = new SubCircuitTracker();
         window.addEventListener('message', event => {
             this.#processMessage(event.data);
         });
@@ -198,24 +232,32 @@ class DigitalJS {
                 };
                 if (!this.circuit)
                     return post_error('No active circuit');
-                const ele = $('#paper > .joint-paper > svg')[0];
-                try {
-                    if (message.type == 'image/svg') {
-                        const svg = svgutils.toSvg(ele);
-                        return post_reply(svg, false);
+                const export_image = async (ele) => {
+                    try {
+                        if (message.type == 'image/svg') {
+                            const svg = svgutils.toSvg(ele);
+                            return post_reply(svg, false);
+                        }
+                        const canvas = await svgutils.toCanvas(ele);
+                        const t = message.type;
+                        const dataurl = canvas.toDataURL(t, 1);
+                        const prefix = `data:${t};base64,`;
+                        if (!dataurl.startsWith(prefix))
+                            return post_error(`Unsupported image type ${t}`);
+                        return post_reply(dataurl.substring(prefix.length), true);
                     }
-                    const canvas = await svgutils.toCanvas(ele);
-                    const t = message.type;
-                    const dataurl = canvas.toDataURL(t, 1);
-                    const prefix = `data:${t};base64,`;
-                    if (!dataurl.startsWith(prefix))
-                        return post_error(`Unsupported image type ${t}`);
-                    return post_reply(dataurl.substring(prefix.length), true);
-                }
-                catch (e) {
-                    console.error(e);
-                    return post_error('Unknown error');
-                }
+                    catch (e) {
+                        console.error(e);
+                        return post_error('Unknown error');
+                    }
+                };
+                if (!message.subcircuit)
+                    return export_image($('#paper > .joint-paper > svg')[0]);
+                const sub = this.#subcircuit_tracker.find(message.subcircuit);
+                // Check title mismatch in case something has changed since user's selection
+                if (!sub || sub.title !== message.subcircuit_title)
+                    return post_error('Unable to find subcircuit');
+                return export_image(sub.svg);
             }
         }
     }
@@ -296,7 +338,16 @@ class DigitalJS {
         const circuit_opts = {
             layoutEngine: 'elkjs',
             engine: digitaljs.engines.WorkerEngine,
-            engineOptions: { workerURL: window.simWorkerUri }
+            engineOptions: { workerURL: window.simWorkerUri },
+            windowCallback: (type, div, close_cb, ...args) => {
+                const title = div.attr('title') || 'unknown subcircuit';
+                const svg = div.find('svg');
+                const id = this.#subcircuit_tracker.add(title, svg[0]);
+                return this.circuit._defaultWindowCallback(type, div, () => {
+                    this.#subcircuit_tracker.remove(id);
+                    close_cb();
+                }, ...args);
+            }
         };
         // The layout actually uses display information (i.e. the text widths of the labels)
         // so we can't really do it well on the host side
@@ -497,6 +548,7 @@ class DigitalJS {
         if (this.circuit) {
             this.circuit.shutdown();
             this.circuit = undefined;
+            this.#subcircuit_tracker.clear();
         }
         if (this.#paper) {
             this.#paper.remove();

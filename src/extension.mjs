@@ -484,7 +484,7 @@ class DigitalJS {
         // Stripping them for now should hopefully be the least risky.
         const id = this.#untitled_tracker.alloc();
         const name = `circuit-${id}.digitaljs`;
-        const workspaceFolders = vscode.workspace.workspaceFolders
+        const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!hint)
             use_workspace = true;
         if (!workspaceFolders || workspaceFolders.length == 0)
@@ -535,8 +535,37 @@ class DigitalJS {
     async #exportImage() {
         if (!this.#document)
             return;
-        const defaultUri = this.doc_dir_uri ? vscode.Uri.joinPath(this.doc_dir_uri,
-                                                                  'circuit.png') : undefined;
+        const subcircuits = this.#circuitView.subcircuits;
+        let item;
+        if (Object.entries(subcircuits).length > 0) {
+            const items = [];
+            items.push({ id: undefined, label: "toplevel" });
+            for (const id in subcircuits)
+                items.push({ id, label: subcircuits[id], description: 'sub-circuit' });
+            item = await vscode.window.showQuickPick(items, {
+                title: 'Select (sub-)circuit to export'
+            });
+        }
+        else {
+            item = { id: undefined, label: "toplevel" };
+        }
+        if (!item)
+            return;
+        const default_name = item.id === undefined ? 'circuit.png' :
+                             `${item.label.replaceAll(' ', '-')}.png`;
+        let default_path = this.doc_dir_uri;
+        if (default_path && default_path.scheme == 'untitled')
+            default_path = undefined;
+        if (!default_path) {
+            const active = active_editor_uri();
+            if (active) {
+                default_path = active.with({ path: path.join(path.dirname(active.path), name) });
+            }
+        }
+        if (!default_path)
+            default_path = find_workspace_uri(undefined, vscode.workspace.workspaceFolders);
+        const defaultUri = default_path ?
+                           vscode.Uri.joinPath(default_path, default_name) : undefined;
         const file = await vscode.window.showSaveDialog({
             defaultUri,
             filters: {
@@ -562,8 +591,13 @@ class DigitalJS {
             return vscode.window.showErrorMessage(
                 `Unable to save image ${message.uri}: unknown extension ${ext}`);
         }
-        this.postPanelMessage({ command: 'exportimage',
-                                type: img_type, uri: file.toString() });
+        const cmd = { command: 'exportimage',
+                      type: img_type, uri: file.toString() }
+        if (item.id !== undefined) {
+            cmd.subcircuit = item.id;
+            cmd.subcircuit_title = item.label;
+        }
+        this.postPanelMessage(cmd);
     }
     #removeSource(item) {
         if (!this.#document)

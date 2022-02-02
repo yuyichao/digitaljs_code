@@ -3,6 +3,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as base64 from 'base64-arraybuffer';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
 
 export class CircuitView {
@@ -10,6 +11,7 @@ export class CircuitView {
     #document
     #queue
     #init
+    #subcircuits = {}
     constructor(djs, panel, document) {
         this.#panel = panel;
         this.#document = document;
@@ -19,7 +21,7 @@ export class CircuitView {
         this.onDidChangeViewState = this.#panel.onDidChangeViewState;
         this.#panel.webview.onDidReceiveMessage((msg) => {
             this.#queue.release();
-            this.#document.processCommand(msg);
+            this.#processCommand(msg);
         });
         let circuit_listener = this.#document.circuitUpdated((run) => {
             this.#showCircuit(run, false);
@@ -39,8 +41,32 @@ export class CircuitView {
     get document() {
         return this.#document;
     }
+    get subcircuits() {
+        return this.#subcircuits;
+    }
     init() {
         return this.#init;
+    }
+    #processCommand(msg) {
+        switch (msg.command) {
+            case 'subcircuits':
+                this.#subcircuits = msg.subcircuits;
+                return;
+            case 'saveimg-error':
+                return vscode.window.showErrorMessage(
+                    `Unable to save image ${msg.uri}: ${msg.message}`);
+            case 'saveimg': {
+                const uri = vscode.Uri.parse(msg.uri);
+                if (msg.base64) {
+                    const data = base64.decode(msg.data);
+                    return vscode.workspace.fs.writeFile(uri, new Uint8Array(data));
+                }
+                else {
+                    return write_txt_file(uri, msg.data);
+                }
+            }
+        }
+        this.#document.processCommand(msg);
     }
     #showCircuit(run, pause) {
         this.post({

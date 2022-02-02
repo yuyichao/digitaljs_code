@@ -4,7 +4,6 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as base64 from 'base64-arraybuffer';
 import _ from 'lodash';
 import { run_yosys } from './requests.mjs';
 import { Sources } from './sources.mjs';
@@ -393,19 +392,6 @@ export class Document {
                 return this.#processMarker(message.markers);
             case 'clearmarker':
                 return this.#clearMarker();
-            case 'saveimg-error':
-                return vscode.window.showErrorMessage(
-                    `Unable to save image ${message.uri}: ${message.message}`);
-            case 'saveimg': {
-                const uri = vscode.Uri.parse(message.uri);
-                if (message.base64) {
-                    const data = base64.decode(message.data);
-                    return vscode.workspace.fs.writeFile(uri, new Uint8Array(data));
-                }
-                else {
-                    return write_txt_file(uri, message.data);
-                }
-            }
         }
     }
 }

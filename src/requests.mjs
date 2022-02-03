@@ -73,14 +73,15 @@ class Yosys {
             this.#run(opts.optimize ? 'opt' : 'opt_clean');
             if (opts.fsm && opts.fsm != 'no') {
                 const fsmexpand = opts.fsmexpand ? " -expand" : "";
-                this.#run(options.fsm == "nomap" ? "fsm -nomap" + fsmexpand : "fsm" + fsmexpand);
+                this.#run(opts.fsm == "nomap" ? "fsm -nomap" + fsmexpand : "fsm" + fsmexpand);
             }
             this.#run('memory -nomap');
             this.#run('wreduce -memx');
             this.#run(opts.optimize ? 'opt -full' : 'opt_clean');
             this.#run('json -o /output.json');
         }
-        catch {
+        catch (e) {
+            console.error(e);
             const error = this.#file_map.unmap_string(this.#ccall('errmsg', 'string', [], []));
             throw { error };
         }

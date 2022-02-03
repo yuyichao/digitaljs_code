@@ -318,9 +318,13 @@ class DigitalJS {
             fit: false,
             center: false,
             dblClickZoomEnabled: false,
-            // zoomScaleSensitivity: 0.4,
+            mouseWheelZoomEnabled: true,
+            zoomScaleSensitivity: 0.2,
             panEnabled: false,
-            zoomEnabled: false,
+            zoomEnabled: true,
+            mouseWheelEventFilter: (evt) => {
+                return (evt.ctrlKey || evt.metaKey) && !evt.shiftKey && !evt.altKey;
+            },
             onZoom: function(scale) {
                 // TODO
                 // currentScale = scale;

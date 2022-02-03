@@ -309,7 +309,7 @@
         "resize-observer-polyfill": "^1.5.1",
         "split-grid": "^1.0.11",
         "stream-browserify": "^3.0.0",
-        "svg-pan-zoom": "github:bumbu/svg-pan-zoom",
+        "svg-pan-zoom": "github:yuyichao/svg-pan-zoom",
         "util": "^0.12.4",
         "wavecanvas": "^1.1.0",
         "yosys2digitaljs": "^0.6.0",

@@ -46,6 +46,12 @@
                 "category": "DigitalJS"
             },
             {
+                "command": "digitaljs.showPanel",
+                "title": "Show DigitalJS Panel",
+                "icon": "imgs/digitaljs.svg",
+                "category": "DigitalJS"
+            },
+            {
                 "command": "digitaljs.openViewJSON",
                 "title": "Open as circuit in DigitalJS",
                 "icon": "imgs/digitaljs.svg",
@@ -165,14 +171,19 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "digitaljs.showPanel",
+                    "when": "digitaljs.view_isfocus",
+                    "group": "navigation@0"
+                },
+                {
                     "command": "digitaljs.pause",
                     "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && digitaljs.view_running",
-                    "group": "navigation"
+                    "group": "navigation@1"
                 },
                 {
                     "command": "digitaljs.start",
                     "when": "digitaljs.view_isfocus && digitaljs.view_hascircuit && !digitaljs.view_running",
-                    "group": "navigation"
+                    "group": "navigation@1"
                 }
             ],
             "explorer/context": [

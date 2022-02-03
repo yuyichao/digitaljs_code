@@ -123,6 +123,10 @@ class DigitalJS {
             vscode.commands.registerCommand('digitaljs.openView',
                                             () => this.#openView()));
         context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.showPanel',
+                                            () => vscode.commands.executeCommand(
+                                                'digitaljs-proj-files.focus')));
+        context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.openViewJSON',
                                             (item) => this.#openViewJSON(item)));
         context.subscriptions.push(

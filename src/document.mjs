@@ -24,6 +24,7 @@ export class Document {
     #extra_data = {}
     #synth_options = { ...default_synth_options }
     #circuit = { devices: {}, connectors: [], subcircuits: {} }
+    #last_circuit_changed
 
     #tick = 0
     #iopanelViews = []
@@ -153,6 +154,7 @@ export class Document {
                 this.#circuit[fld] = v;
             delete data[fld];
         }
+        this.#last_circuit_changed = undefined;
         this.#extra_data = data;
     }
     #toBackup() {
@@ -217,7 +219,9 @@ export class Document {
     // Edits
     #createEdit(before, after, label, cb) {
         if (_.isEqual(before, after))
-            return;
+            return false;
+        // We must not copy `after` here since the caller (in particular #circuitEdit)
+        // may mutate the object to merge in changes later.
         this.#documentEdited.fire({
             document: this,
             label: label,
@@ -228,6 +232,7 @@ export class Document {
                 cb(before);
             },
         });
+        return true;
     }
 
     // Actions
@@ -256,10 +261,16 @@ export class Document {
     #circuitEdit(after, label) {
         const before = this.#circuit;
         this.#circuit = after;
-        this.#createEdit(before, after, label, (circuit) => {
+        const changed = this.#createEdit(before, after, label, (circuit) => {
             this.#circuit = circuit;
+            this.#last_circuit_changed = undefined;
             this.#circuitUpdated.fire(false);
         });
+        if (!changed) {
+            this.#last_circuit_changed = undefined;
+            return;
+        }
+        this.#last_circuit_changed = after;
     }
     async doSynth() {
         // Load a snapshot of the options up front
@@ -330,6 +341,31 @@ export class Document {
         }
         this.#circuitEdit(message.circuit, label);
     }
+    #processAutoLayout(message) {
+        // If some user action triggers the automatic layout of the circuit,
+        // we want to merge the change of the layout to the edit that corresponds
+        // to that action, which we'll assume be the previous edit of the ciruit.
+        // There are a few cases that we need to be careful though,
+        // 1. we don't want to create a new edit just for the auto layout
+        //    since it'll make undo basically a no-op (it will trigger another auto layout
+        //    and get us back to exactly where we started)
+        //    and might confuse the vscode history management.
+        //    This means that if we don't have an edit to merge with,
+        //    we should not generate a new edit
+        // 2. we need to ignore the potential auto layout event after load/undo/redo/revert
+        //    since those should set the document to a state that should be clean
+        //    unless the user does something explicity.
+        // For these reasons, we'll clear the last circuit change if the edit was a no-op
+        // and after load/undo/redo/revert.
+        if (!this.#last_circuit_changed) {
+            this.#circuit = message.circuit;
+            return;
+        }
+        for (const key in this.#last_circuit_changed)
+            delete this.#last_circuit_changed[key];
+        Object.assign(this.#last_circuit_changed, message.circuit);
+        this.#circuit = this.#last_circuit_changed;
+    }
 
     // Messages
     #processIOPanelMessage(message) {
@@ -358,6 +394,9 @@ export class Document {
         switch (message.command) {
             case 'updatecircuit':
                 this.#updateCircuit(message);
+                return;
+            case 'autolayout':
+                this.#processAutoLayout(message);
                 return;
             case 'tick':
                 this.tick = message.tick;

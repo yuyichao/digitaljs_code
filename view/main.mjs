@@ -139,9 +139,9 @@ class SubCircuitTracker {
         this.#subcircuits = {};
         this.#refresh();
     }
-    add(title, svg) {
+    add(title, svg, type) {
         const id = ++this.#count;
-        this.#subcircuits[id] = { title, svg };
+        this.#subcircuits[id] = { title, svg, type };
         this.#refresh();
         return id;
     }
@@ -154,8 +154,10 @@ class SubCircuitTracker {
     }
     titles() {
         const res = {};
-        for (const id in this.#subcircuits)
-            res[id] = this.#subcircuits[id].title;
+        for (const id in this.#subcircuits) {
+            const item = this.#subcircuits[id];
+            res[id] = { title: item.title, type: item.type };
+        }
         return res;
     }
 }
@@ -394,7 +396,7 @@ class DigitalJS {
                 if (type !== "Memory") {
                     const title = div.attr('title') || 'unknown subcircuit';
                     const svg = div.find('svg');
-                    id = this.#subcircuit_tracker.add(title, svg[0]);
+                    id = this.#subcircuit_tracker.add(title, svg[0], type);
                 }
                 return this.circuit._defaultWindowCallback(type, div, () => {
                     if (id !== undefined)

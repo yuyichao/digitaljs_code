@@ -550,8 +550,10 @@ class DigitalJS {
         if (Object.entries(subcircuits).length > 0) {
             const items = [];
             items.push({ id: undefined, label: "toplevel" });
-            for (const id in subcircuits)
-                items.push({ id, label: subcircuits[id], description: 'sub-circuit' });
+            for (const id in subcircuits) {
+                const item = subcircuits[id];
+                items.push({ id, label: item.title, description: item.type });
+            }
             item = await vscode.window.showQuickPick(items, {
                 title: 'Select (sub-)circuit to export'
             });

@@ -272,6 +272,8 @@ export class Document {
         });
         if (!res)
             return;
+        // The side panel should receive focus when we do synthesis
+        // but it should already have focus so we don't need to do anything.
         this.#circuitEdit(res.output, 'Synthesis');
         this.tick = 0;
         this.#circuitUpdated.fire(true); // force a run

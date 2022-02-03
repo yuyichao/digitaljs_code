@@ -414,25 +414,31 @@ class DigitalJS {
 
             post_switch();
         };
-        let prev_active = false;
+        let was_shown = false;
         const on_view_state = () => {
             const panel = circuit_view.panel;
             const active = panel.active;
             if (active) {
                 switch_document(document, circuit_view);
-                // Don't switch to the digitaljs side panel if we are just
-                // switching columns (or getting this event for other reasons).
-                // Do switch to it if the view was hidden even if we are the previous
-                // active one though.
-                if (!prev_active)
+                // Only switch to the digitaljs side panel
+                // if this is the first time we show this circuit
+                // or in general if the editor is shown as a result of a direct
+                // interaction between the user and our extension.
+                // In most cases the code that activate the editor will explicitly
+                // show the side panel though we can't do that when we are opening new files
+                // since the side panel might be hiden and can't be focused
+                // (when first circuit is shown).
+                // Therefore, we focus on our side panel on first show of the editor
+                // to cover this case...
+                if (!was_shown)
                     vscode.commands.executeCommand('digitaljs-proj-files.focus');
+                was_shown = true;
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', true);
             }
             else if (this.#document === document) {
                 // Keep the last active document active in the side bars.
                 vscode.commands.executeCommand('setContext', 'digitaljs.view_isfocus', false);
             }
-            prev_active = active;
         };
         circuit_view.onDidChangeViewState(on_view_state);
         on_view_state();
@@ -631,6 +637,7 @@ class DigitalJS {
     #openViewSource(uri, force_new) {
         if (this.#circuitView && !force_new) {
             this.#circuitView.reveal();
+            vscode.commands.executeCommand('digitaljs-proj-files.focus');
             this.#document.addSources([uri]);
         }
         else {
@@ -651,8 +658,10 @@ class DigitalJS {
     async #openView() {
         const uri = active_editor_uri();
         const new_or_active = () => {
-            if (this.#circuitView)
+            if (this.#circuitView) {
+                vscode.commands.executeCommand('digitaljs-proj-files.focus');
                 return this.#circuitView.reveal();
+            }
             this.#newJSON(uri, true);
         };
         // No active editor (or files of type we don't recognize, see below)
@@ -661,8 +670,10 @@ class DigitalJS {
             return new_or_active();
         // If we have this open as circuit already, switch to it.
         const exist_view = this.#findViewByURI(uri);
-        if (exist_view)
+        if (exist_view) {
+            vscode.commands.executeCommand('digitaljs-proj-files.focus');
             return exist_view.reveal();
+        }
         const ext = path.extname(uri.path);
         if (ext == '.digitaljs') {
             return this.#openViewJSON(uri);
@@ -678,14 +689,18 @@ class DigitalJS {
             if (res === 'Open')
                 return this.#openViewJSON(uri);
             // Check circuitView again in case it was just closed
-            if (new_circuit && this.#circuitView)
+            if (new_circuit && this.#circuitView) {
+                vscode.commands.executeCommand('digitaljs-proj-files.focus');
                 return this.#circuitView.reveal();
+            }
             return this.#newJSON(uri, false);
         }
         else if (['.sv', '.v', '.vh', '.lua'].includes(ext)) {
             // Source file already in current document.
-            if (this.#document && this.#document.sources.findByURI(uri))
+            if (this.#document && this.#document.sources.findByURI(uri)) {
+                vscode.commands.executeCommand('digitaljs-proj-files.focus');
                 return this.#circuitView.reveal();
+            }
             if (this.#circuitView) {
                 const res = await vscode.window.showInformationMessage(
                     `Add ${uri.path} to?`, 'Current Circuit', 'New Circuit');

@@ -7,6 +7,7 @@ import $ from 'jquery';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import svgPanZoom from 'svg-pan-zoom';
+import Hammer from 'hammerjs';
 import * as imgutils from './imgutils.mjs';
 import Split from 'split-grid';
 import { MonitorView } from './monitor.mjs';
@@ -315,6 +316,102 @@ class DigitalJS {
         paper.on('blank:pointerclick', clear_marker); // Try to support touch
 
         let currentScale = 1;
+        let hammer;
+
+        const svgEventsHandler = {
+            haltEventListeners: ['touchstart', 'touchend', 'touchmove',
+                                 'touchleave', 'touchcancel'],
+            init: (options) => {
+                const instance = options.instance;
+
+                // Init Hammer
+                // Listen only for pointer and touch events
+                hammer = Hammer(options.svgElement, {
+                    inputClass: Hammer.SUPPORT_POINTER_EVENTS ? Hammer.PointerEventInput :
+                                Hammer.TouchInput
+                });
+
+                // Enable pinch
+                hammer.get('pinch').set({enable: true});
+
+                // Handle pan
+                const pan_state = {
+                    enabled: false,
+                    init_dist: undefined
+                };
+                hammer.on('panstart panmove', (ev) => {
+                    if (!instance.isPanEnabled()) {
+                        pan_state.enabled = false;
+                        return;
+                    }
+                    // On pan start reset panned variables
+                    if (ev.type === 'panstart') {
+                        pan_state.enabled = true;
+                        const init_pan = instance.getPan();
+                        pan_state.init_dist = { x: init_pan.x - ev.center.x,
+                                                y: init_pan.y - ev.center.y };
+                    }
+                    else if (!pan_state.enabled) {
+                        return;
+                    }
+                    instance.pan({ x: pan_state.init_dist.x + ev.center.x,
+                                   y: pan_state.init_dist.y + ev.center.y });
+                });
+                hammer.on('pancancel panend', () => {
+                    pan_state.enabled = false;
+                });
+
+                // Handle pinch
+                const pinch_state = {
+                    enabled: false,
+                    init_scale: 1,
+                    init_dist: undefined,
+                };
+                hammer.on('pinchstart pinchmove', (ev) => {
+                    if (!instance.isPanEnabled()) {
+                        pinch_state.enabled = false;
+                        return;
+                    }
+                    // On pinch start remember initial zoom
+                    if (ev.type === 'pinchstart') {
+                        pinch_state.enabled = true;
+                        pinch_state.init_scale = instance.getZoom();
+                        const init_pan = instance.getPan();
+                        pinch_state.init_dist = { x: init_pan.x - ev.center.x,
+                                                  y: init_pan.y - ev.center.y };
+                    }
+                    else if (!pinch_state.enabled) {
+                        return;
+                    }
+
+                    instance.zoom(pinch_state.init_scale * ev.scale);
+                    instance.pan({ x: pinch_state.init_dist.x * ev.scale + ev.center.x,
+                                   y: pinch_state.init_dist.y * ev.scale + ev.center.y });
+                });
+                hammer.on('pinchcancel pinchend', () => {
+                    pinch_state.enabled = false;
+                });
+
+                // Hammer seems to be preventing the touch events from generating
+                // the double click for tapping so we need to handle that separately here.
+                hammer.on('doubletap', (ev) => {
+                    if (currentScale >= 0.99 && currentScale <= 2)
+                        return panAndZoom.zoomAtPoint(currentScale * 1.5,
+                                                      { x: ev.center.x, y: ev.center.y });
+                    panAndZoom.reset();
+                });
+
+                // Prevent moving the page on some devices when panning over SVG
+                options.svgElement.addEventListener('touchmove', (e) => {
+                    if (!pinch_state.enabled && !pan_state.enabled)
+                        return;
+                    e.preventDefault();
+                });
+            },
+            destroy: () => {
+                hammer.destroy();
+            }
+        };
 
         const panAndZoom = svgPanZoom(paper.svg, {
             fit: false,
@@ -324,6 +421,7 @@ class DigitalJS {
             zoomScaleSensitivity: 0.2,
             panEnabled: false,
             zoomEnabled: true,
+            customEventsHandler: svgEventsHandler,
             mouseWheelEventFilter: (evt) => {
                 return (evt.ctrlKey || evt.metaKey) && !evt.shiftKey && !evt.altKey;
             },

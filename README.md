@@ -59,6 +59,8 @@ Contributions are welcome!
 
 * Viewing and simulation multiple circuits simultaneously
 
+* Zoom and pan support with both mouse and touch screen.
+
 * Can run either fully locally using the native version of VS Code,
   or fully on the web using the web version of VS Code
   (e.g. [vscode.dev](https://vscode.dev/), [github.dev](https://github.dev/) or [gitpod.io](https://gitpod.io/))

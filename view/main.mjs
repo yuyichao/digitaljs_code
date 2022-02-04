@@ -314,6 +314,8 @@ class DigitalJS {
         paper.on('cell:mouseleave', clear_marker);
         paper.on('blank:pointerclick', clear_marker); // Try to support touch
 
+        let currentScale = 1;
+
         const panAndZoom = svgPanZoom(paper.svg, {
             fit: false,
             center: false,
@@ -326,8 +328,7 @@ class DigitalJS {
                 return (evt.ctrlKey || evt.metaKey) && !evt.shiftKey && !evt.altKey;
             },
             onZoom: function(scale) {
-                // TODO
-                // currentScale = scale;
+                currentScale = scale;
             }
         });
 
@@ -339,6 +340,14 @@ class DigitalJS {
         // Disable pan when the mouse button is released
         paper.on('cell:pointerup blank:pointerup', () => {
             panAndZoom.disablePan();
+        });
+
+        // Double click to zoom in until a certain size before reset
+        paper.on('blank:pointerdblclick', (ev) => {
+            if (currentScale >= 0.99 && currentScale <= 2)
+                return panAndZoom.zoomAtPoint(currentScale * 1.5,
+                                              { x: ev.offsetX, y: ev.offsetY });
+            panAndZoom.reset();
         });
     }
     #queueCallback(ele, evt_type) {

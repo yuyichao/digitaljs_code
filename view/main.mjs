@@ -530,108 +530,121 @@ class DigitalJS {
         // might still not have all the layout info.
         let in_layout = false;
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
-        this.circuit.listenTo(this.circuit._graph, 'elkjs:layout_start', (ele) => {
-            const old_info = this.#change_tracker.info;
-            // Flush the changes before the layout starts
-            if (old_info) {
-                this.#change_tracker.clear();
-                vscode.postMessage({ command: "updatecircuit",
-                                     circuit: this.circuit.toJSON(),
-                                     type: old_info.type,
-                                     ele_type: old_info.ele_type });
-            }
-            in_layout = true;
-        });
-        this.circuit.listenTo(this.circuit._graph, 'elkjs:layout_end', (ele) => {
-            vscode.postMessage({ command: "autolayout", circuit: this.circuit.toJSON() });
-            in_layout = false;
-        });
-        this.circuit.listenTo(this.circuit._graph, 'change:position', (ele) => {
-            if (in_layout)
-                return;
-            this.#checkAndQueueChange(ele, 'pos');
-        });
-        this.circuit.listenTo(this.circuit._graph, 'change:vertices', (ele) => {
-            if (in_layout)
-                return;
-            this.#checkAndQueueChange(ele, 'vert');
-        });
-        this.circuit.listenTo(this.circuit._graph, 'change:source', (ele) => {
-            if (in_layout)
-                return;
-            this.#checkAndQueueChange(ele, 'src');
-        });
-        this.circuit.listenTo(this.circuit._graph, 'change:target', (ele) => {
-            if (in_layout)
-                return;
-            this.#checkAndQueueChange(ele, 'tgt');
-        });
-        this.circuit.listenTo(this.circuit._graph, 'add', (ele, cells) => {
-            if (in_layout)
-                return;
-            const evt_type = 'add';
-            const old_info = this.#change_tracker.info;
-            if (old_info) {
-                // An add is always a new event, take a snapshot of the old value
-                const tmp_cells = cells.clone();
-                tmp_cells.remove(ele);
-                cells.graph.attributes.cells = tmp_cells;
-                const circuit = this.circuit.toJSON();
-                cells.graph.attributes.cells = cells;
-                vscode.postMessage({ command: "updatecircuit", circuit,
-                                     type: old_info.type, ele_type: old_info.ele_type });
-            }
-            this.#queueCallback(ele, evt_type);
-        });
-        this.circuit.listenTo(this.circuit._graph, 'remove', (ele, cells) => {
-            if (in_layout)
-                return;
-            const cid = ele.cid;
-            const evt_type = 'rm';
-            const old_info = this.#change_tracker.info;
-            // A remove is never going to be merged with the next event.
-            this.#change_tracker.clear();
-            // If this is the one we are adding, ignore it
-            if (old_info) {
-                if (old_info.type == 'add' && old_info.cid == cid)
-                    return;
-                // If there's anything else that was in progress, generate a version for that.
-                const tmp_cells = cells.clone();
-                tmp_cells.add(ele);
-                cells.graph.attributes.cells = tmp_cells;
-                const circuit = this.circuit.toJSON();
-                cells.graph.attributes.cells = cells;
-                vscode.postMessage({ command: "updatecircuit", circuit,
-                                     type: old_info.type, ele_type: old_info.ele_type });
-            }
-            const attr = ele.attributes;
-            const ele_type = attr ? attr.type : undefined;
-            vscode.postMessage({ command: "updatecircuit", circuit: this.circuit.toJSON(),
-                                 type: evt_type, ele_type });
-        });
-        this.circuit.listenTo(this.circuit._graph, 'batch:stop', (data) => {
-            if (in_layout)
-                return;
-            const batch_name = data.batchName;
-            // These events marks the end of a drag-and-move event
-            // Out of the events that I've observed, we do not want to handle the
-            // translation batch since it fires in the middle of dragging.
-            if (batch_name === 'vertex-move' || batch_name == 'vertex-add' ||
-                batch_name == 'pointer') {
-                // The main case that we need to be careful about is the ordering with the
-                // remove event since it looks at the old info and do different things
-                // depend on if there was an add event of the same element previously.
-                // Fortunately, the remove event fires before the batch stop event
-                // so it'll handle the removal of an just-added wire before we do.
-                const info = this.#change_tracker.info;
-                if (info) {
+        const reg_graph_listeners = (graph) => {
+            this.circuit.listenTo(graph, 'elkjs:layout_start', () => {
+                const old_info = this.#change_tracker.info;
+                // Flush the changes before the layout starts
+                if (old_info) {
+                    this.#change_tracker.clear();
                     vscode.postMessage({ command: "updatecircuit",
                                          circuit: this.circuit.toJSON(),
-                                         type: info.type, ele_type: info.ele_type });
-                    this.#change_tracker.clear();
+                                         type: old_info.type,
+                                         ele_type: old_info.ele_type });
                 }
-            }
-        })
+                in_layout = true;
+            });
+            this.circuit.listenTo(graph, 'elkjs:layout_end', () => {
+                vscode.postMessage({ command: "autolayout", circuit: this.circuit.toJSON() });
+                in_layout = false;
+            });
+            this.circuit.listenTo(graph, 'change:position', (ele) => {
+                if (in_layout)
+                    return;
+                this.#checkAndQueueChange(ele, 'pos');
+            });
+            this.circuit.listenTo(graph, 'change:vertices', (ele) => {
+                if (in_layout)
+                    return;
+                this.#checkAndQueueChange(ele, 'vert');
+            });
+            this.circuit.listenTo(graph, 'change:source', (ele) => {
+                if (in_layout)
+                    return;
+                this.#checkAndQueueChange(ele, 'src');
+            });
+            this.circuit.listenTo(graph, 'change:target', (ele) => {
+                if (in_layout)
+                    return;
+                this.#checkAndQueueChange(ele, 'tgt');
+            });
+            this.circuit.listenTo(graph, 'add', (ele, cells) => {
+                if (in_layout)
+                    return;
+                const evt_type = 'add';
+                const old_info = this.#change_tracker.info;
+                if (old_info) {
+                    // An add is always a new event, take a snapshot of the old value
+                    const tmp_cells = cells.clone();
+                    tmp_cells.remove(ele);
+                    cells.graph.attributes.cells = tmp_cells;
+                    const circuit = this.circuit.toJSON();
+                    cells.graph.attributes.cells = cells;
+                    vscode.postMessage({ command: "updatecircuit", circuit,
+                                         type: old_info.type, ele_type: old_info.ele_type });
+                }
+                this.#queueCallback(ele, evt_type);
+            });
+            this.circuit.listenTo(graph, 'remove', (ele, cells) => {
+                if (in_layout)
+                    return;
+                const cid = ele.cid;
+                const evt_type = 'rm';
+                const old_info = this.#change_tracker.info;
+                // A remove is never going to be merged with the next event.
+                this.#change_tracker.clear();
+                // If this is the one we are adding, ignore it
+                if (old_info) {
+                    if (old_info.type == 'add' && old_info.cid == cid)
+                        return;
+                    // If there's anything else that was in progress, generate a version for that.
+                    const tmp_cells = cells.clone();
+                    tmp_cells.add(ele);
+                    cells.graph.attributes.cells = tmp_cells;
+                    const circuit = this.circuit.toJSON();
+                    cells.graph.attributes.cells = cells;
+                    vscode.postMessage({ command: "updatecircuit", circuit,
+                                         type: old_info.type, ele_type: old_info.ele_type });
+                }
+                const attr = ele.attributes;
+                const ele_type = attr ? attr.type : undefined;
+                vscode.postMessage({ command: "updatecircuit", circuit: this.circuit.toJSON(),
+                                     type: evt_type, ele_type });
+            });
+            this.circuit.listenTo(graph, 'batch:stop', (data) => {
+                if (in_layout)
+                    return;
+                const batch_name = data.batchName;
+                // These events marks the end of a drag-and-move event
+                // Out of the events that I've observed, we do not want to handle the
+                // translation batch since it fires in the middle of dragging.
+                if (batch_name === 'vertex-move' || batch_name == 'vertex-add' ||
+                    batch_name == 'pointer') {
+                    // The main case that we need to be careful about is the ordering with the
+                    // remove event since it looks at the old info and do different things
+                    // depend on if there was an add event of the same element previously.
+                    // Fortunately, the remove event fires before the batch stop event
+                    // so it'll handle the removal of an just-added wire before we do.
+                    const info = this.#change_tracker.info;
+                    if (info) {
+                        vscode.postMessage({ command: "updatecircuit",
+                                             circuit: this.circuit.toJSON(),
+                                             type: info.type, ele_type: info.ele_type });
+                        this.#change_tracker.clear();
+                    }
+                }
+            });
+            // Do not listen for the update from the subcircuits for now
+            // since digitaljs currently doesn't support loading the same type of subcircuits
+            // with different layout parameters.
+            // Most likely, we'll need to patch it a bit ourselves but we should do that
+            // in a backward compatible way...
+            /* for (const cell of graph.getCells()) {
+             *     if (cell.get('type') === 'Subcircuit') {
+             *         reg_graph_listeners(cell.get('graph'));
+             *     }
+             * } */
+        };
+        reg_graph_listeners(this.circuit._graph);
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });

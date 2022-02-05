@@ -166,7 +166,7 @@ function to_canvas(rect, img) {
     return canvas;
 }
 
-function clone_svg(svg, opts = { stripAttr: true, replaceInput: true }) {
+function clone_svg(svg, opts) {
     // Add to the DOM temporarily to get the default style
     const cloned_svg = clone_node(svg, document.body, false, opts);
     const svgrect = cloned_svg.getBoundingClientRect();
@@ -187,16 +187,16 @@ function clone_svg(svg, opts = { stripAttr: true, replaceInput: true }) {
     return { svg: cloned_svg, rect: new DOMRect(0, 0, rect.width, rect.height) };
 }
 
-export function toSvg(svg) {
-    const res = clone_svg(svg);
+export function toSvg(svg, opts = { stripAttr: true, replaceInput: true }) {
+    const res = clone_svg(svg, opts);
     if (!res)
         return;
     const { svg: cloned_svg, rect } = res;
     return new XMLSerializer().serializeToString(cloned_svg);
 }
 
-export async function toCanvas(svg) {
-    const res = clone_svg(svg);
+export async function toCanvas(svg, opts = { stripAttr: true, replaceInput: true }) {
+    const res = clone_svg(svg, opts);
     if (!res)
         return;
     const { svg: cloned_svg, rect } = res;

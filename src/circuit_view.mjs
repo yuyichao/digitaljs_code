@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import * as base64 from 'base64-arraybuffer';
 import { WebviewMsgQueue } from './webview_msg_queue.mjs';
+import { write_txt_file } from './utils.mjs';
 
 export class CircuitView {
     #panel

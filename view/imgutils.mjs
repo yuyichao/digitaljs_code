@@ -170,20 +170,21 @@ function clone_svg(svg, opts = { stripAttr: true, replaceInput: true }) {
     // Add to the DOM temporarily to get the default style
     const cloned_svg = clone_node(svg, document.body, false, opts);
     const svgrect = cloned_svg.getBoundingClientRect();
-    const content_rect = get_content_rect(cloned_svg, svgrect);
+    const rect = get_content_rect(cloned_svg, svgrect);
     document.body.removeChild(cloned_svg);
-    if (!content_rect)
+    if (!rect)
         return;
 
-    cloned_svg.setAttribute('width', `${svgrect.width}`);
-    cloned_svg.setAttribute('height', `${svgrect.height}`);
-    cloned_svg.setAttribute('viewBox', `0 0 ${svgrect.width} ${svgrect.height}`);
     // Leave some clipping margin
-    content_rect.x -= 2;
-    content_rect.y -= 2;
-    content_rect.width += 4;
-    content_rect.height += 4;
-    return { svg: cloned_svg, rect: content_rect };
+    rect.x -= 2;
+    rect.y -= 2;
+    rect.width += 4;
+    rect.height += 4;
+
+    cloned_svg.setAttribute('width', `${rect.width}`);
+    cloned_svg.setAttribute('height', `${rect.height}`);
+    cloned_svg.setAttribute('viewBox', `${rect.x} ${rect.y} ${rect.width} ${rect.height}`);
+    return { svg: cloned_svg, rect: new DOMRect(0, 0, rect.width, rect.height) };
 }
 
 export function toSvg(svg) {
@@ -191,9 +192,6 @@ export function toSvg(svg) {
     if (!res)
         return;
     const { svg: cloned_svg, rect } = res;
-    cloned_svg.setAttribute('width', `${rect.width}`);
-    cloned_svg.setAttribute('height', `${rect.height}`);
-    cloned_svg.setAttribute('viewBox', `${rect.x} ${rect.y} ${rect.width} ${rect.height}`);
     return new XMLSerializer().serializeToString(cloned_svg);
 }
 

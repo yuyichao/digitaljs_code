@@ -259,12 +259,25 @@ class DigitalJS {
                 if (!this.circuit)
                     return post_error('No active circuit');
                 const export_image = async (ele) => {
+                    // There are other and more generic ways to record and reset
+                    // the scale of the image before saving.
+                    // However, deleting the attribute added by svg-pan-zoom
+                    // produces the most reproducible results.
+                    const postclone = (svg) => {
+                        const viewport = $(svg).children('.svg-pan-zoom_viewport');
+                        viewport.css('transform', '');
+                        if (!viewport.attr('style')) {
+                            viewport.removeAttr('style');
+                        }
+                        viewport.removeAttr('transform');
+                    };
+                    const img_options = { global_postclone: postclone };
                     try {
                         if (message.type == 'image/svg+xml') {
-                            const svg = imgutils.toSvg(ele);
+                            const svg = imgutils.toSvg(ele, img_options);
                             return post_reply(svg, false);
                         }
-                        const canvas = await imgutils.toCanvas(ele);
+                        const canvas = await imgutils.toCanvas(ele, img_options);
                         const t = message.type;
                         const dataurl = canvas.toDataURL(t, 1);
                         const prefix = `data:${t};base64,`;

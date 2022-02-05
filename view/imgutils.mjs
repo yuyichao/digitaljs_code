@@ -169,6 +169,8 @@ function to_canvas(rect, img) {
 function clone_svg(svg, opts) {
     // Add to the DOM temporarily to get the default style
     const cloned_svg = clone_node(svg, document.body, false, opts);
+    if (opts.global_postclone)
+        opts.global_postclone(cloned_svg);
     const svgrect = cloned_svg.getBoundingClientRect();
     const rect = get_content_rect(cloned_svg, svgrect);
     document.body.removeChild(cloned_svg);

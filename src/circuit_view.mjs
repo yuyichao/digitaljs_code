@@ -24,8 +24,8 @@ export class CircuitView {
             this.#queue.release();
             this.#processCommand(djs, msg);
         });
-        let circuit_listener = this.#document.circuitUpdated((run) => {
-            this.#showCircuit(run, false);
+        let circuit_listener = this.#document.circuitUpdated((run, keep) => {
+            this.#showCircuit(run, false, keep);
             this.reveal();
         });
         this.onDidDispose(() => {
@@ -75,11 +75,11 @@ export class CircuitView {
         }
         this.#document.processCommand(msg);
     }
-    #showCircuit(run, pause) {
+    #showCircuit(run, pause, keep) {
         this.post({
             command: 'showcircuit',
             circuit: this.#document.circuit,
-            opts: { run, pause }
+            opts: { run, pause, keep }
         });
     }
     async #getViewContent(djs, webview) {

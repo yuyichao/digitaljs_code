@@ -197,7 +197,7 @@ export class Document {
         this.tick = 0;
         this.#clearMarker();
         this.#sources.refresh();
-        this.#circuitUpdated.fire(false);
+        this.#circuitUpdated.fire(false, false);
         this.#synthOptionUpdated.fire();
     }
     async backup(dest) {
@@ -258,13 +258,13 @@ export class Document {
             this.#sources.refresh();
         }, 'Remove source');
     }
-    #circuitEdit(after, label) {
+    #circuitEdit(after, label, new_circuit) {
         const before = this.#circuit;
         this.#circuit = after;
         const changed = this.#createEdit(before, after, label, (circuit) => {
             this.#circuit = circuit;
             this.#last_circuit_changed = undefined;
-            this.#circuitUpdated.fire(false);
+            this.#circuitUpdated.fire(false, !new_circuit);
         });
         if (!changed) {
             this.#last_circuit_changed = undefined;
@@ -285,9 +285,9 @@ export class Document {
             return;
         // The side panel should receive focus when we do synthesis
         // but it should already have focus so we don't need to do anything.
-        this.#circuitEdit(res.output, 'Synthesis');
+        this.#circuitEdit(res.output, 'Synthesis', true);
         this.tick = 0;
-        this.#circuitUpdated.fire(true); // force a run
+        this.#circuitUpdated.fire(true, false); // force a run
         return true;
     }
     #processMarker(markers) {
@@ -339,7 +339,7 @@ export class Document {
         else {
             label = `Editing ${ele_type}`;
         }
-        this.#circuitEdit(message.circuit, label);
+        this.#circuitEdit(message.circuit, label, false);
     }
     #processAutoLayout(message) {
         // If some user action triggers the automatic layout of the circuit,

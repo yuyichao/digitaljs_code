@@ -398,8 +398,10 @@ class DigitalJS {
                     }
 
                     instance.zoom(pinch_state.init_scale * ev.scale);
-                    instance.pan({ x: pinch_state.init_dist.x * ev.scale + ev.center.x,
-                                   y: pinch_state.init_dist.y * ev.scale + ev.center.y });
+                    // The zoom level may not be what we requested when it hits the limit
+                    const scale = instance.getZoom() / pinch_state.init_scale;
+                    instance.pan({ x: pinch_state.init_dist.x * scale + ev.center.x,
+                                   y: pinch_state.init_dist.y * scale + ev.center.y });
                 });
                 hammer.on('pinchcancel pinchend', () => {
                     pinch_state.enabled = false;

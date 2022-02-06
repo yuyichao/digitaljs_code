@@ -442,6 +442,7 @@ class DigitalJS {
                 currentScale = scale;
             }
         });
+        paper._djs_panAndZoom = panAndZoom;
 
         // Enable pan when a blank area is click (held) on
         paper.on('blank:pointerdown', () => {
@@ -497,6 +498,22 @@ class DigitalJS {
         }
         this.#queueCallback(ele, evt_type);
     }
+    #collectStates() {
+        const states = {};
+        if (this.#paper && this.#paper._djs_panAndZoom) {
+            states.main_transform = {
+                zoom: this.#paper._djs_panAndZoom.getZoom(),
+                pan: this.#paper._djs_panAndZoom.getPan(),
+            };
+        }
+        return states;
+    }
+    #restoreStates(states, keep) {
+        if (this.#paper && this.#paper._djs_panAndZoom && keep) {
+            this.#paper._djs_panAndZoom.zoom(states.main_transform.zoom);
+            this.#paper._djs_panAndZoom.pan(states.main_transform.pan);
+        }
+    }
     #mkCircuit(data, opts) {
         let run_circuit = false;
         if (opts.run) {
@@ -508,6 +525,7 @@ class DigitalJS {
         else if (this.circuit) {
             run_circuit = this.circuit.running
         }
+        const old_states = this.#collectStates();
         this.#destroyCircuit();
         if (circuit_empty(data))
             return;
@@ -727,6 +745,8 @@ class DigitalJS {
         show_scale();
         this.#monitorview.on('change:start', show_range);
         this.#monitorview.on('change:pixelsPerTick', show_scale);
+
+        this.#restoreStates(old_states, opts.keep);
     }
 
     #updateRunStates() {

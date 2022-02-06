@@ -197,7 +197,7 @@ export class Document {
         this.tick = 0;
         this.#clearMarker();
         this.#sources.refresh();
-        this.#circuitUpdated.fire(false, false);
+        this.#circuitUpdated.fire({ run: false, keep: false });
         this.#synthOptionUpdated.fire();
     }
     async backup(dest) {
@@ -264,7 +264,7 @@ export class Document {
         const changed = this.#createEdit(before, after, label, (circuit) => {
             this.#circuit = circuit;
             this.#last_circuit_changed = undefined;
-            this.#circuitUpdated.fire(false, !new_circuit);
+            this.#circuitUpdated.fire({ run: false, keep: !new_circuit });
         });
         if (!changed) {
             this.#last_circuit_changed = undefined;
@@ -287,7 +287,7 @@ export class Document {
         // but it should already have focus so we don't need to do anything.
         this.#circuitEdit(res.output, 'Synthesis', true);
         this.tick = 0;
-        this.#circuitUpdated.fire(true, false); // force a run
+        this.#circuitUpdated.fire({ run: true, keep: false }); // force a run
         return true;
     }
     #processMarker(markers) {

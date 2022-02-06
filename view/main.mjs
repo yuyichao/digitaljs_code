@@ -651,11 +651,11 @@ class DigitalJS {
             // with different layout parameters.
             // Most likely, we'll need to patch it a bit ourselves but we should do that
             // in a backward compatible way...
-            /* for (const cell of graph.getCells()) {
-             *     if (cell.get('type') === 'Subcircuit') {
-             *         reg_graph_listeners(cell.get('graph'));
-             *     }
-             * } */
+            for (const cell of graph.getCells()) {
+                if (cell.get('type') === 'Subcircuit') {
+                    reg_graph_listeners(cell.get('graph'));
+                }
+            }
         };
         reg_graph_listeners(this.circuit._graph);
         this.circuit.on('postUpdateGates', (tick) => {

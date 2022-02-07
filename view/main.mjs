@@ -163,6 +163,26 @@ class SubCircuitTracker {
     }
 }
 
+class Engine extends digitaljs.engines.WorkerEngine {
+    constructor(graph, opts) {
+        const restore_graph_states = (graph, signals) => {
+            if (!signals)
+                return;
+            for (const gate of graph.getElements()) {
+                const sub_signals = signals[gate.id];
+                if (!sub_signals)
+                    continue;
+                if (gate.get('type') == 'Subcircuit')
+                    restore_graph_states(gate.get('graph'), sub_signals.sub_signals);
+                gate.set('outputSignals', sub_signals.output);
+                gate.set('inputSignals', sub_signals.input);
+            }
+        };
+        restore_graph_states(graph, opts.signals);
+        super(graph, opts);
+    }
+}
+
 class DigitalJS {
     #iopanel
     #monitor
@@ -500,7 +520,21 @@ class DigitalJS {
         }
         this.#queueCallback(ele, evt_type);
     }
-    #collectStates() {
+    async #collectStates() {
+        const observe_graph = (graph) => {
+            if (!graph)
+                return;
+            this.circuit._engine.observeGraph(graph);
+            for (const gate of graph.getElements()) {
+                if (gate.get('type') == 'Subcircuit') {
+                    observe_graph(gate.get('graph'));
+                }
+            }
+        };
+        if (this.circuit && this.circuit._graph)
+            observe_graph(this.circuit._graph);
+        const sync = this.circuit ? this.circuit.synchronize() : undefined;
+
         const states = {};
         if (this.#paper && this.#paper._djs_panAndZoom) {
             states.main_transform = {
@@ -508,6 +542,21 @@ class DigitalJS {
                 pan: this.#paper._djs_panAndZoom.getPan(),
             };
         }
+        states.signals = {};
+        await sync;
+        const collect_graph_states = (graph, signals) => {
+            for (const gate of graph.getElements()) {
+                signals[gate.id] = { input: gate.get('inputSignals'),
+                                     output: gate.get('outputSignals') };
+                if (gate.get('type') == 'Subcircuit') {
+                    signals[gate.id].sub_signals = {};
+                    collect_graph_states(gate.get('graph'), signals[gate.id].sub_signals);
+                }
+            }
+        };
+        if (this.circuit && this.circuit._graph)
+            collect_graph_states(this.circuit._graph, states.signals);
+
         return states;
     }
     #restoreStates(states, keep) {
@@ -516,7 +565,7 @@ class DigitalJS {
             this.#paper._djs_panAndZoom.pan(states.main_transform.pan);
         }
     }
-    #mkCircuit(data, opts) {
+    async #mkCircuit(data, opts) {
         let run_circuit = false;
         if (opts.run) {
             run_circuit = true;
@@ -527,14 +576,15 @@ class DigitalJS {
         else if (this.circuit) {
             run_circuit = this.circuit.running
         }
-        const old_states = this.#collectStates();
+        const old_states = await this.#collectStates();
         this.#destroyCircuit();
         if (circuit_empty(data))
             return;
         const circuit_opts = {
             layoutEngine: 'elkjs',
-            engine: digitaljs.engines.WorkerEngine,
-            engineOptions: { workerURL: window.simWorkerUri },
+            engine: Engine,
+            engineOptions: { workerURL: window.simWorkerUri,
+                             signals: opts.keep ? old_states.signals : undefined },
             windowCallback: (type, div, close_cb, ...args) => {
                 let id;
                 if (type !== "Memory") {

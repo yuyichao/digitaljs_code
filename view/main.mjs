@@ -578,8 +578,14 @@ class DigitalJS {
         }
         const old_states = await this.#collectStates();
         this.#destroyCircuit();
-        if (circuit_empty(data))
+        if (circuit_empty(data)) {
+            const paper_div = $('#paper');
+            paper_div.html('<h1 style="text-align:center">No active circuit.</h1>');
+            const btn = $('<p style="text-align:center"><vscode-button><i slot="start" class="codicon codicon-run"></i> Synthesize</vscode-button></p>');
+            btn.click(() => vscode.postMessage({ command: "do-synth" }));
+            paper_div.append(btn);
             return;
+        }
         const circuit_opts = {
             layoutEngine: 'elkjs',
             engine: Engine,
@@ -842,6 +848,7 @@ class DigitalJS {
         this.#lua.shutdown();
         this.#updateRunStates();
         $('#monitorbox vscode-button').prop('disabled', true).off();
+        $('#paper').empty();
     }
     #pauseSim() {
         this.circuit.stop();

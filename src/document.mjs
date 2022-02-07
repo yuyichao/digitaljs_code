@@ -433,6 +433,8 @@ export class Document {
                 return this.#processMarker(message.markers);
             case 'clearmarker':
                 return this.#clearMarker();
+            case 'do-synth':
+                return this.doSynth();
         }
     }
 }

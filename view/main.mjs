@@ -8,8 +8,9 @@ import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import svgPanZoom from 'svg-pan-zoom';
 import Hammer from 'hammerjs';
-import * as imgutils from './imgutils.mjs';
+import ResizeObserver from 'resize-observer-polyfill';
 import Split from 'split-grid';
+import * as imgutils from './imgutils.mjs';
 import { MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
 
@@ -591,18 +592,40 @@ class DigitalJS {
             engine: Engine,
             engineOptions: { workerURL: window.simWorkerUri,
                              signals: opts.keep ? old_states.signals : undefined },
-            windowCallback: (type, div, close_cb, ...args) => {
+            windowCallback: (type, div, close_cb, model) => {
                 let id;
                 if (type !== "Memory") {
                     const title = div.attr('title') || 'unknown subcircuit';
                     const svg = div.find('svg');
                     id = this.#subcircuit_tracker.add(title, svg[0], type);
                 }
-                return this.circuit._defaultWindowCallback(type, div, () => {
-                    if (id !== undefined)
-                        this.#subcircuit_tracker.remove(id);
-                    close_cb();
-                }, ...args);
+                const maxWidth = () => $(window).width() * 0.9;
+                const maxHeight = () => $(window).height() * 0.9;
+                const observer = new ResizeObserver(() => {
+                    const mw = maxWidth();
+                    if (div.width() > mw)
+                        div.dialog("option", "width", mw);
+                    const mh = maxHeight();
+                    if (div.height() > mh)
+                        div.dialog("option", "height", mh);
+                });
+                observer.observe(div.get(0));
+                const shutdownCallback = () => { div.dialog('close'); };
+                this.circuit.listenToOnce(this.circuit, 'shutdown', shutdownCallback);
+                const dialog = div.dialog({
+                    width: 'auto',
+                    height: 'auto',
+                    maxWidth: maxWidth(),
+                    maxHeight: maxHeight(),
+                    resizable: type !== "Memory",
+                    close: () => {
+                        if (id !== undefined)
+                            this.#subcircuit_tracker.remove(id);
+                        this.circuit.stopListening(this.circuit, 'shutdown', shutdownCallback);
+                        close_cb();
+                        observer.disconnect();
+                    }
+                });
             }
         };
         // The layout actually uses display information (i.e. the text widths of the labels)

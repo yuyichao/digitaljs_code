@@ -595,7 +595,7 @@ class DigitalJS {
             windowCallback: (type, div, close_cb, model) => {
                 let id;
                 if (type !== "Memory") {
-                    const title = div.attr('title') || 'unknown subcircuit';
+                    const title = div.attr('title') || `Unknown ${type || 'Subcircuit'}`;
                     const svg = div.find('svg');
                     id = this.#subcircuit_tracker.add(title, svg[0], type);
                 }

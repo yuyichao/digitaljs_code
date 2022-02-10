@@ -296,7 +296,7 @@
     },
     "dependencies": {
         "@vscode/codicons": "^0.0.27",
-        "@vscode/webview-ui-toolkit": "github:yuyichao/vscode-webview-ui-toolkit#dev",
+        "@vscode/webview-ui-toolkit": "^0.9.1",
         "3vl": "^1.0.0",
         "assert": "^2.0.0",
         "backbone": "^1.4.0",

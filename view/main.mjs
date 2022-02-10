@@ -322,7 +322,7 @@ class DigitalJS {
         }
     }
 
-    #registerMarkers(paper) {
+    #registerPaper(paper) {
         const show_marker = (cellView) => {
             let markers = [];
             const positions = cellView.model.get('source_positions');
@@ -772,8 +772,8 @@ class DigitalJS {
             model: this.circuit, el: $(''), vscode: vscode
         });
         this.#paper = this.circuit.displayOn($('<div>').appendTo($('#paper')));
-        this.#registerMarkers(this.#paper);
-        this.circuit.on('new:paper', (paper) => { this.#registerMarkers(paper); });
+        this.#registerPaper(this.#paper);
+        this.circuit.on('new:paper', (paper) => { this.#registerPaper(paper); });
         this.circuit.on('userChange', () => {
             this.#updateRunStates();
         });

@@ -201,9 +201,11 @@ class DigitalJS {
     #lua
     #change_tracker
     #subcircuit_tracker
+    #paper_in_flight
     constructor() {
         this.circuit = undefined;
         this.#lua = new LuaRunner(this);
+        this.#paper_in_flight = new Map();
         this.#change_tracker = new ChangeTracker();
         this.#subcircuit_tracker = new SubCircuitTracker();
         window.addEventListener('message', event => {
@@ -356,6 +358,9 @@ class DigitalJS {
         paper.on('cell:pointerclick', show_marker); // Try to support touch
         paper.on('cell:mouseleave', clear_marker);
         paper.on('blank:pointerclick', clear_marker); // Try to support touch
+
+        if (paper !== this.#paper)
+            this.#paper_in_flight.set(paper.el, paper);
 
         let currentScale = 1;
         let hammer;
@@ -602,10 +607,16 @@ class DigitalJS {
                              signals: opts.keep ? old_states.signals : undefined },
             windowCallback: (type, div, close_cb, { model }) => {
                 let id;
+                let paper;
                 if (type !== "Memory") {
                     const title = div.attr('title') || `Unknown ${type || 'Subcircuit'}`;
                     const svg = div.find('svg');
                     id = this.#subcircuit_tracker.add(title, svg[0], type);
+                    if (type === "Subcircuit") {
+                        const paper_el = $(div).find('div.joint-paper')[0];
+                        paper = this.#paper_in_flight.get(paper_el);
+                        this.#paper_in_flight.delete(paper_el);
+                    }
                 }
                 const observer = new ResizeObserver(() => {
                     const mw = max_dialog_width();
@@ -849,6 +860,7 @@ class DigitalJS {
         this.#monitorview.autoredraw = !circuit.running;
     }
     #destroyCircuit() {
+        this.#paper_in_flight.clear();
         if (this.#monitor) {
             // remember which signals were monitored
             this.#monitormem = this.#monitor.getWiresDesc();

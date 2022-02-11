@@ -39,6 +39,14 @@ function circuit_empty(circuit) {
     return true;
 }
 
+const $window = $(window);
+function max_dialog_width() {
+    return $window.width() * 0.9;
+}
+function max_dialog_height() {
+    return $window.height() * 0.9;
+}
+
 class LuaRunner {
     #djs
     #runners
@@ -599,13 +607,11 @@ class DigitalJS {
                     const svg = div.find('svg');
                     id = this.#subcircuit_tracker.add(title, svg[0], type);
                 }
-                const maxWidth = () => $(window).width() * 0.9;
-                const maxHeight = () => $(window).height() * 0.9;
                 const observer = new ResizeObserver(() => {
-                    const mw = maxWidth();
+                    const mw = max_dialog_width();
                     if (div.width() > mw)
                         div.dialog("option", "width", mw);
-                    const mh = maxHeight();
+                    const mh = max_dialog_height();
                     if (div.height() > mh)
                         div.dialog("option", "height", mh);
                 });
@@ -615,8 +621,8 @@ class DigitalJS {
                 const dialog = div.dialog({
                     width: 'auto',
                     height: 'auto',
-                    maxWidth: maxWidth(),
-                    maxHeight: maxHeight(),
+                    maxWidth: max_dialog_width(),
+                    maxHeight: max_dialog_height(),
                     resizable: type !== "Memory",
                     close: () => {
                         if (id !== undefined)

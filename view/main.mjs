@@ -831,22 +831,6 @@ class DigitalJS {
         let in_layout = false;
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
         const reg_graph_listeners = (graph) => {
-            this.circuit.listenTo(graph, 'elkjs:layout_start', () => {
-                const old_info = this.#change_tracker.info;
-                // Flush the changes before the layout starts
-                if (old_info) {
-                    this.#change_tracker.clear();
-                    vscode.postMessage({ command: "updatecircuit",
-                                         circuit: this.circuit.toJSON(),
-                                         type: old_info.type,
-                                         ele_type: old_info.ele_type });
-                }
-                in_layout = true;
-            });
-            this.circuit.listenTo(graph, 'elkjs:layout_end', () => {
-                vscode.postMessage({ command: "autolayout", circuit: this.circuit.toJSON() });
-                in_layout = false;
-            });
             this.circuit.listenTo(graph, 'change:position', (ele) => {
                 if (in_layout)
                     return;
@@ -910,15 +894,36 @@ class DigitalJS {
                 vscode.postMessage({ command: "updatecircuit", circuit: this.circuit.toJSON(),
                                      type: evt_type, ele_type });
             });
+            this.circuit.listenTo(graph, 'batch:start', (data) => {
+                const batch_name = data.batchName;
+                if (batch_name === 'layout') {
+                    const old_info = this.#change_tracker.info;
+                    // Flush the changes before the layout starts
+                    if (old_info) {
+                        this.#change_tracker.clear();
+                        vscode.postMessage({ command: "updatecircuit",
+                                             circuit: this.circuit.toJSON(),
+                                             type: old_info.type,
+                                             ele_type: old_info.ele_type });
+                    }
+                    in_layout = true;
+                }
+            });
             this.circuit.listenTo(graph, 'batch:stop', (data) => {
+                const batch_name = data.batchName;
+                if (batch_name === 'layout') {
+                    vscode.postMessage({ command: "autolayout",
+                                         circuit: this.circuit.toJSON() });
+                    in_layout = false;
+                    return;
+                }
                 if (in_layout)
                     return;
-                const batch_name = data.batchName;
                 // These events marks the end of a drag-and-move event
                 // Out of the events that I've observed, we do not want to handle the
                 // translation batch since it fires in the middle of dragging.
-                if (batch_name === 'vertex-move' || batch_name == 'vertex-add' ||
-                    batch_name == 'pointer') {
+                if (batch_name === 'vertex-move' || batch_name === 'vertex-add' ||
+                    batch_name === 'pointer') {
                     // The main case that we need to be careful about is the ordering with the
                     // remove event since it looks at the old info and do different things
                     // depend on if there was an add event of the same element previously.

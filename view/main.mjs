@@ -592,7 +592,7 @@ class DigitalJS {
             engine: Engine,
             engineOptions: { workerURL: window.simWorkerUri,
                              signals: opts.keep ? old_states.signals : undefined },
-            windowCallback: (type, div, close_cb, model) => {
+            windowCallback: (type, div, close_cb, { model }) => {
                 let id;
                 if (type !== "Memory") {
                     const title = div.attr('title') || `Unknown ${type || 'Subcircuit'}`;

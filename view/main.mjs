@@ -201,6 +201,7 @@ class DigitalJS {
     #lua
     #change_tracker
     #subcircuit_tracker
+    #model_paths
     #paper_in_flight
     constructor() {
         this.circuit = undefined;
@@ -579,6 +580,23 @@ class DigitalJS {
             this.#paper._djs_panAndZoom.pan(states.main_transform.pan);
         }
     }
+    #collectModels(graph) {
+        this.#model_paths = new Map();
+        const collect_models = (graph, path) => {
+            for (const gate of graph.getElements()) {
+                const gate_type = gate.get('type');
+                if (gate_type === 'Subcircuit') {
+                    const subpath = [ ...path, gate.id ];
+                    this.#model_paths.set(gate, subpath);
+                    collect_models(gate.get('graph'), subpath);
+                }
+                else if (gate_type === 'Memory' || gate_type === 'FSM') {
+                    this.#model_paths.set(gate, [...path, gate.id]);
+                }
+            }
+        };
+        collect_models(graph, []);
+    }
     async #mkCircuit(data, opts) {
         let run_circuit = false;
         if (opts.run) {
@@ -618,6 +636,7 @@ class DigitalJS {
                         this.#paper_in_flight.delete(paper_el);
                     }
                 }
+                const model_path = this.#model_paths.get(model);
                 const observer = new ResizeObserver(() => {
                     const mw = max_dialog_width();
                     if (div.width() > mw)
@@ -774,6 +793,7 @@ class DigitalJS {
             }
         };
         reg_graph_listeners(this.circuit._graph);
+        this.#collectModels(this.circuit._graph);
         this.circuit.on('postUpdateGates', (tick) => {
             vscode.postMessage({ command: "tick", tick });
         });

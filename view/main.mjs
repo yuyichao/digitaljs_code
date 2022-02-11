@@ -687,6 +687,9 @@ class DigitalJS {
         if (this.circuit && this.circuit._graph)
             collect_graph_states(this.circuit._graph, states.signals);
 
+        if (this.circuit)
+            states.tick = this.circuit.tick;
+
         this.#dialog_mgr.saveStates();
 
         return states;
@@ -811,7 +814,8 @@ class DigitalJS {
             layoutEngine: 'elkjs',
             engine: Engine,
             engineOptions: { workerURL: window.simWorkerUri,
-                             signals: opts.keep ? old_states.signals : undefined },
+                             signals: opts.keep ? old_states.signals : undefined,
+                             initTick: opts.keep ? old_states.tick : undefined },
             windowCallback: (type, div, close_cb, { model }) => {
                 this.#openDialog(++this.#dialog_key_count, type, div, close_cb, model);
             }

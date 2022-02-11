@@ -192,6 +192,118 @@ class Engine extends digitaljs.engines.WorkerEngine {
     }
 }
 
+class Dialog {
+    #dialog
+    close_cb
+    used = true;
+    constructor(mgr, key) {
+        this.#dialog = $('<div>').appendTo('html > body');
+        const observer = new ResizeObserver(() => {
+            const mw = max_dialog_width();
+            if (this.#dialog.width() > mw)
+                this.#dialog.dialog("option", "width", mw);
+            const mh = max_dialog_height();
+            if (this.#dialog.height() > mh)
+                this.#dialog.dialog("option", "height", mh);
+        });
+        observer.observe(this.#dialog[0]);
+        this.#dialog.dialog({
+            width: 'auto',
+            height: 'auto',
+            maxWidth: max_dialog_width(),
+            maxHeight: max_dialog_height(),
+            close: () => {
+                mgr.dialogs.delete(key);
+                observer.disconnect();
+                this.shutdown();
+            },
+        });
+        mgr.dialogs.set(key, this);
+    }
+    get dialog() {
+        return this.#dialog;
+    }
+    widget() {
+        return this.#dialog.dialog('widget');
+    }
+    close() {
+        this.#dialog.dialog('close');
+    }
+    option(opts) {
+        this.#dialog.dialog('option', opts);
+    }
+    shutdown() {
+        if (this.close_cb) {
+            this.close_cb();
+        }
+    }
+}
+
+class DialogManager {
+    #dialogs
+    constructor() {
+        this.#dialogs = new Map();
+    }
+    get dialogs() {
+        return this.#dialogs;
+    }
+    #getDialog(key) {
+        const dialog = this.#dialogs.get(key);
+        if (dialog) {
+            dialog.used = true;
+            return { dialog, reuse: true };
+        }
+        return { dialog: new Dialog(this, key), reuse: false };
+    }
+    openDialog(key, div, title, resizable, close_cb, ctx) {
+        const { dialog, reuse } = this.#getDialog(key);
+        dialog.option({ title, resizable });
+        dialog.close_cb = close_cb;
+        div.detach().appendTo(dialog.dialog);
+        dialog.context = ctx;
+        // The dialog is created with empty content so if this is a new one
+        // we should refresh the position calculation.
+        // Note that this is still not ideal for subcircuits
+        // since the elkjs layout is done asynchronously and will actually
+        // happen after this.
+        if (!reuse)
+            dialog.widget().position({ my: "center", at: "center", of: window });
+        return dialog;
+    }
+    saveStates() {
+        for (const dialog of this.#dialogs.values()) {
+            dialog.context.save();
+            dialog.shutdown();
+            dialog.used = false;
+            dialog.close_cb = undefined;
+        }
+    }
+    closeUnused() {
+        this.#dialogs.forEach((dialog, key, dialogs) => {
+            if (dialog.used)
+                return;
+            dialog.close();
+            dialogs.delete(key);
+        });
+    }
+}
+
+class DialogContext {
+    constructor(type, model_path, paper) {
+        this.type = type;
+        this.model_path = model_path;
+        this.paper = paper;
+    }
+    save() {
+        const paper = this.paper;
+        delete this.paper;
+        if (paper && paper._djs_panAndZoom) {
+            this.transform = { zoom: paper._djs_panAndZoom.getZoom(),
+                               pan: paper._djs_panAndZoom.getPan() };
+        }
+    }
+}
+
 class DigitalJS {
     #iopanel
     #monitor
@@ -203,11 +315,14 @@ class DigitalJS {
     #subcircuit_tracker
     #model_paths
     #paper_in_flight
+    #dialog_mgr
+    #dialog_key_count = 0
     constructor() {
         this.circuit = undefined;
         this.#lua = new LuaRunner(this);
         this.#paper_in_flight = new Map();
         this.#change_tracker = new ChangeTracker();
+        this.#dialog_mgr = new DialogManager();
         this.#subcircuit_tracker = new SubCircuitTracker();
         window.addEventListener('message', event => {
             this.#processMessage(event.data);
@@ -572,12 +687,47 @@ class DigitalJS {
         if (this.circuit && this.circuit._graph)
             collect_graph_states(this.circuit._graph, states.signals);
 
+        this.#dialog_mgr.saveStates();
+
         return states;
     }
     #restoreStates(states, keep) {
-        if (this.#paper && this.#paper._djs_panAndZoom && keep) {
+        if (!keep)
+            return;
+        if (this.#paper && this.#paper._djs_panAndZoom) {
             this.#paper._djs_panAndZoom.zoom(states.main_transform.zoom);
             this.#paper._djs_panAndZoom.pan(states.main_transform.pan);
+        }
+        const find_model = (graph, path) => {
+            const cell = graph.getCell(path[0]);
+            if (path.length == 1)
+                return cell;
+            if (cell.get('type') !== 'Subcircuit')
+                return;
+            return find_model(cell.get('graph'), path.slice(1));
+        };
+        for (const [key, dialog] of this.#dialog_mgr.dialogs.entries()) {
+            const context = dialog.context;
+            const model = find_model(this.circuit._graph, context.model_path);
+            const model_type = model.get('type');
+            if (model_type !== context.type)
+                continue;
+            if (model_type === 'Subcircuit') {
+                const sub = this.circuit.createSubcircuit(model);
+                if (context.transform) {
+                    sub.paper._djs_panAndZoom.zoom(context.transform.zoom);
+                    sub.paper._djs_panAndZoom.pan(context.transform.pan);
+                }
+                this.#openDialog(key, model_type, sub.div, sub.close, model);
+            }
+            else if (model_type === 'FSM') {
+                const sub = model.createEditor();
+                this.#openDialog(key, model_type, sub.div, sub.close, model);
+            }
+            else if (model_type === 'Memory') {
+                const sub = model.createEditor();
+                this.#openDialog(key, model_type, sub.div, sub.close, model);
+            }
         }
     }
     #collectModels(graph) {
@@ -597,7 +747,46 @@ class DigitalJS {
         };
         collect_models(graph, []);
     }
+    #openDialog(key, type, div, close_cb, model) {
+        let id;
+        let paper;
+        const title = div.attr('title') || `Unknown ${type || 'Subcircuit'}`;
+        div.removeAttr('title');
+        if (type !== "Memory") {
+            const svg = div.find('svg');
+            id = this.#subcircuit_tracker.add(title, svg[0], type);
+            if (type === "Subcircuit") {
+                const paper_el = $(div).find('div.joint-paper')[0];
+                paper = this.#paper_in_flight.get(paper_el);
+                this.#paper_in_flight.delete(paper_el);
+            }
+        }
+
+        const model_path = this.#model_paths.get(model);
+        const context = new DialogContext(type, model_path, paper);
+        // On reload, the close callback is called before the circuit is destroyed
+        // which would have disconnected the shutdown callback.
+        // Therefore, the shutdown callback should only be called when the circuit
+        // is shutdown for some other reasons (which shouldn't really happen).
+        // But if it does happen, we'll close the dialog just to be safe.
+        const shutdownCallback = () => { dialog.close(); };
+        this.circuit.listenToOnce(this.circuit, 'shutdown', shutdownCallback);
+        this.#dialog_mgr.openDialog(key, div, title, type !== "Memory", () => {
+            if (id !== undefined)
+                this.#subcircuit_tracker.remove(id);
+            this.circuit.stopListening(this.circuit, 'shutdown', shutdownCallback);
+            close_cb();
+        }, context);
+    }
     async #mkCircuit(data, opts) {
+        try {
+            await this.#_mkCircuit(data, opts);
+        }
+        finally {
+            this.#dialog_mgr.closeUnused();
+        }
+    }
+    async #_mkCircuit(data, opts) {
         let run_circuit = false;
         if (opts.run) {
             run_circuit = true;
@@ -624,44 +813,7 @@ class DigitalJS {
             engineOptions: { workerURL: window.simWorkerUri,
                              signals: opts.keep ? old_states.signals : undefined },
             windowCallback: (type, div, close_cb, { model }) => {
-                let id;
-                let paper;
-                if (type !== "Memory") {
-                    const title = div.attr('title') || `Unknown ${type || 'Subcircuit'}`;
-                    const svg = div.find('svg');
-                    id = this.#subcircuit_tracker.add(title, svg[0], type);
-                    if (type === "Subcircuit") {
-                        const paper_el = $(div).find('div.joint-paper')[0];
-                        paper = this.#paper_in_flight.get(paper_el);
-                        this.#paper_in_flight.delete(paper_el);
-                    }
-                }
-                const model_path = this.#model_paths.get(model);
-                const observer = new ResizeObserver(() => {
-                    const mw = max_dialog_width();
-                    if (div.width() > mw)
-                        div.dialog("option", "width", mw);
-                    const mh = max_dialog_height();
-                    if (div.height() > mh)
-                        div.dialog("option", "height", mh);
-                });
-                observer.observe(div.get(0));
-                const shutdownCallback = () => { div.dialog('close'); };
-                this.circuit.listenToOnce(this.circuit, 'shutdown', shutdownCallback);
-                const dialog = div.dialog({
-                    width: 'auto',
-                    height: 'auto',
-                    maxWidth: max_dialog_width(),
-                    maxHeight: max_dialog_height(),
-                    resizable: type !== "Memory",
-                    close: () => {
-                        if (id !== undefined)
-                            this.#subcircuit_tracker.remove(id);
-                        this.circuit.stopListening(this.circuit, 'shutdown', shutdownCallback);
-                        close_cb();
-                        observer.disconnect();
-                    }
-                });
+                this.#openDialog(++this.#dialog_key_count, type, div, close_cb, model);
             }
         };
         // The layout actually uses display information (i.e. the text widths of the labels)

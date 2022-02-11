@@ -317,6 +317,7 @@ class DigitalJS {
     #paper_in_flight
     #dialog_mgr
     #dialog_key_count = 0
+    #latest_dialog
     constructor() {
         this.circuit = undefined;
         this.#lua = new LuaRunner(this);
@@ -774,12 +775,32 @@ class DigitalJS {
         // But if it does happen, we'll close the dialog just to be safe.
         const shutdownCallback = () => { dialog.close(); };
         this.circuit.listenToOnce(this.circuit, 'shutdown', shutdownCallback);
-        this.#dialog_mgr.openDialog(key, div, title, type !== "Memory", () => {
+        return this.#dialog_mgr.openDialog(key, div, title, type !== "Memory", () => {
             if (id !== undefined)
                 this.#subcircuit_tracker.remove(id);
             this.circuit.stopListening(this.circuit, 'shutdown', shutdownCallback);
             close_cb();
         }, context);
+    }
+    #updateDialogInitPosition(model) {
+        if (!this.#latest_dialog || !model || this.#latest_dialog.model !== model)
+            return;
+        const latest = this.#latest_dialog;
+        if (!latest.dialog.context.paper)
+            return;
+        latest.dialog.context.paper.once('render:done', () => {
+            if (this.#latest_dialog !== latest)
+                return;
+            this.#latest_dialog = undefined;
+            const widget = latest.dialog.widget();
+            if (!widget)
+                return; // dialog closed
+            const pos = widget.position();
+            // Make sure the user hasn't moved the widget
+            if (pos.top == latest.init_pos.top && pos.left == latest.init_pos.left) {
+                widget.position({ my: "center", at: "center", of: window });
+            }
+        });
     }
     async #mkCircuit(data, opts) {
         try {
@@ -817,7 +838,29 @@ class DigitalJS {
                              signals: opts.keep ? old_states.signals : undefined,
                              initTick: opts.keep ? old_states.tick : undefined },
             windowCallback: (type, div, close_cb, { model }) => {
-                this.#openDialog(++this.#dialog_key_count, type, div, close_cb, model);
+                const dialog = this.#openDialog(++this.#dialog_key_count, type,
+                                                div, close_cb, model);
+                // For subcircuit, since the layout is done asynchronously
+                // the dialog could resize after we show it.
+                // If it happens quickly (hard-coded 1 second timeout)
+                // and if the user hasn't moved the dialog yet,
+                // we can recenter the dialog based when the layout is done.
+                if (type === 'Subcircuit') {
+                    const init_pos = dialog.widget().position();
+                    this.#latest_dialog = {
+                        init_pos,
+                        dialog,
+                        model
+                    };
+                    setTimeout(() => {
+                        if (!this.#latest_dialog)
+                            return;
+                        if (this.#latest_dialog.dialog === dialog &&
+                            this.#latest_dialog.model === model) {
+                            this.#latest_dialog = undefined;
+                        }
+                    }, 1000);
+                }
             }
         };
         // The layout actually uses display information (i.e. the text widths of the labels)
@@ -834,7 +877,7 @@ class DigitalJS {
         // might still not have all the layout info.
         let in_layout = false;
         this.circuit = new digitaljs.Circuit(data, circuit_opts);
-        const reg_graph_listeners = (graph) => {
+        const reg_graph_listeners = (graph, model) => {
             this.circuit.listenTo(graph, 'change:position', (ele) => {
                 if (in_layout)
                     return;
@@ -919,6 +962,7 @@ class DigitalJS {
                     vscode.postMessage({ command: "autolayout",
                                          circuit: this.circuit.toJSON() });
                     in_layout = false;
+                    this.#updateDialogInitPosition(model);
                     return;
                 }
                 if (in_layout)
@@ -949,7 +993,7 @@ class DigitalJS {
             // in a backward compatible way...
             for (const cell of graph.getCells()) {
                 if (cell.get('type') === 'Subcircuit') {
-                    reg_graph_listeners(cell.get('graph'));
+                    reg_graph_listeners(cell.get('graph'), cell);
                 }
             }
         };

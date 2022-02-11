@@ -5,7 +5,7 @@
 import $ from 'jquery';
 import Backbone from 'backbone';
 import { Vector3vl } from '3vl';
-import { drawWaveform, defaultSettings, extendSettings, calcGridStep } from 'wavecanvas';
+import { Waveform, drawWaveform, defaultSettings, extendSettings, calcGridStep } from 'wavecanvas';
 import ResizeObserver from 'resize-observer-polyfill';
 
 function baseSelectMarkupHTML(display3vl, bits, base) {
@@ -40,6 +40,75 @@ function getWireName(wire) {
     hier.reverse();
     return hier.join('.');
 }
+
+export class Monitor {
+    constructor(circuit) {
+        this._circuit = circuit;
+        this._wires = new Map();
+        this.listenTo(this._circuit, 'new:paper', (paper) => this.attachTo(paper));
+    }
+    attachTo(paper) {
+        this.listenTo(paper, 'link:monitor', (linkView) => {
+            this.addWire(linkView.model);
+        });
+    }
+    addWire(wire, saved_waveform) {
+        const wireid = getWireId(wire);
+        if (this._wires.has(wireid)) return;
+        const waveform = saved_waveform || new Waveform(wire.get('bits'));
+        const obj = {wire: wire, waveform: waveform, monitorId: undefined};
+        this._wires.set(wireid, obj);
+        this.trigger('add', wire);
+        obj.monitorId = this._circuit.monitorWire(wire, (tick, sig) => {
+            this._handleChange(tick, wire, sig);
+        });
+    }
+    removeWire(wire) {
+        if (typeof wire == 'string') wire = this._wires.get(wire).wire;
+        this.trigger('remove', wire);
+        const wireid = getWireId(wire);
+        this._circuit.unmonitor(this._wires.get(wireid).monitorId);
+        this._wires.delete(wireid);
+    }
+    getWires() {
+        const ret = [];
+        for (const wobj of this._wires.values())
+            ret.push(wobj.wire);
+        return ret;
+    }
+    getWiresDesc() {
+        const ret = [];
+        for (const wobj of this._wires.values()) {
+            const wire = wobj.wire;
+            if (!wire.has('netname'))
+                return;
+            ret.push({
+                name: wire.get('netname'),
+                path: wire.getWirePath(),
+                bits: wire.get('bits'),
+                waveform: wobj.waveform
+            });
+        }
+        return ret;
+    }
+    loadWiresDesc(wd, load_waveform) {
+        for (const w of wd) {
+            const e = this._circuit.findWireByLabel(w.name, w.path);
+            if (e && e.get('bits') == w.bits) {
+                let waveform = load_waveform ? w.waveform : undefined;
+                if (waveform && w.bits != waveform.bits)
+                    waveform = undefined;
+                this.addWire(e, waveform);
+            }
+        }
+    }
+    _handleChange(tick, wire, signal) {
+        this._wires.get(getWireId(wire)).waveform.push(tick, signal);
+        this.trigger('change', wire, signal);
+    }
+}
+
+_.extend(Monitor.prototype, Backbone.Events);
 
 export class MonitorView extends Backbone.View {
     initialize(args) {

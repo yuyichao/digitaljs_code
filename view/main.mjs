@@ -11,7 +11,7 @@ import Hammer from 'hammerjs';
 import ResizeObserver from 'resize-observer-polyfill';
 import Split from 'split-grid';
 import * as imgutils from './imgutils.mjs';
-import { MonitorView } from './monitor.mjs';
+import { Monitor, MonitorView } from './monitor.mjs';
 import { RemoteIOPanel } from './iopanel.mjs';
 
 const vscode = acquireVsCodeApi();
@@ -1004,9 +1004,9 @@ class DigitalJS {
         });
         if (run_circuit)
             this.circuit.start();
-        this.#monitor = new digitaljs.Monitor(this.circuit);
+        this.#monitor = new Monitor(this.circuit);
         if (this.#monitormem) {
-            this.#monitor.loadWiresDesc(this.#monitormem);
+            this.#monitor.loadWiresDesc(this.#monitormem, opts.keep);
             this.#monitormem = undefined;
         }
         this.#monitorview = new MonitorView({ model: this.#monitor, el: $('#monitor') });
@@ -1089,6 +1089,13 @@ class DigitalJS {
         if (this.#monitor) {
             // remember which signals were monitored
             this.#monitormem = this.#monitor.getWiresDesc();
+        }
+        else if (this.#monitormem) {
+            // Only keep the monitor waveform for one round
+            // to match the behavior of other runtime state.
+            for (const mem of this.#monitormem) {
+                delete mem.waveform;
+            }
         }
         if (this.circuit) {
             this.circuit.shutdown();

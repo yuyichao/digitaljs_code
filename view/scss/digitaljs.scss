@@ -1,0 +1,303 @@
+// from digitaljs
+
+.joint-element .highlighted {
+  outline: none;
+  fill: #ecf0f1;
+  stroke: #bdc3c7;
+  cursor: crosshair;
+}
+
+.djs.fixed .joint-link {
+  pointer-events: none;
+}
+.djs.fixed .joint-element {
+  cursor: default;
+}
+
+/* .viewport is a <g> node wrapping all diagram elements in the paper */
+.joint-viewport {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.joint-paper > svg,
+.joint-paper-background,
+.joint-paper-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/*
+   1. IE can't handle paths without the `d` attribute for bounding box calculation
+   2. IE can't even handle 'd' attribute as a css selector (e.g path[d]) so the following rule will
+   break the links rendering.
+
+   path:not([d]) {
+   display: none;
+   }
+
+ */
+
+
+/* magnet is an element that can be either source or a target of a link */
+.djs:not(.fixed) [magnet=true]:not(.joint-element) {
+  cursor: crosshair;
+}
+.djs:not(.fixed) [magnet=true]:not(.joint-element):hover {
+  opacity: .7;
+}
+
+/*
+
+   Elements have CSS classes named by their types. E.g. type: basic.Rect has a CSS class "element basic Rect".
+   This makes it possible to easilly style elements in CSS and have generic CSS rules applying to
+   the whole group of elements. Each plugin can provide its own stylesheet.
+
+ */
+
+.joint-element {
+  /* Give the user a hint that he can drag&drop the element. */
+  cursor: move;
+}
+
+.joint-element * {
+  user-drag: none;
+}
+
+.joint-element .scalable * {
+  /* The default behavior when scaling an element is not to scale the stroke in order to prevent the ugly effect of stroke with different proportions. */
+  vector-effect: non-scaling-stroke;
+}
+/*
+
+   connection-wrap is a <path> element of the joint.dia.Link that follows the .connection <path> of that link.
+   In other words, the `d` attribute of the .connection-wrap contains the same data as the `d` attribute of the
+   .connection <path>. The advantage of using .connection-wrap is to be able to catch pointer events
+   in the neighborhood of the .connection <path>. This is especially handy if the .connection <path> is
+   very thin.
+
+ */
+
+.marker-source,
+.marker-target {
+  /* This makes the arrowheads point to the border of objects even though the transform: scale() is applied on them. */
+  vector-effect: non-scaling-stroke;
+}
+
+/* Paper */
+.joint-paper {
+  position: relative;
+}
+/* Paper */
+
+/*  Highlighting  */
+.joint-highlight-opacity {
+  opacity: 0.3;
+}
+/*  Highlighting  */
+
+
+/* foreignObject inside the elements (i.e joint.shapes.basic.TextBlock) */
+.joint-element .fobj {
+  overflow: hidden;
+}
+.joint-element .fobj body {
+  background-color: transparent;
+  margin: 0px;
+  position: static;
+}
+.joint-element .fobj div {
+  text-align: center;
+  vertical-align: middle;
+  display: table-cell;
+  padding: 0px 5px 0px 5px;
+}
+
+/* Paper */
+.joint-paper.joint-theme-dark {
+  background-color: #18191b;
+}
+.joint-paper.joint-theme-default {
+  background-color: #FFFFFF;
+}
+/* Paper */
+
+body {
+  font-family: 'verdana', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+}
+
+.joint-element foreignObject {
+  overflow: hidden;
+}
+
+.joint-element foreignObject body {
+  background-color: transparent;
+  display: block;
+  margin: 0;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  cursor: initial;
+}
+
+.joint-element foreignObject body input,
+.joint-element foreignObject body select {
+  pointer-events: all;
+}
+
+.joint-element foreignObject body input[type='text'],
+.joint-element foreignObject body input[type='number'],
+.joint-element foreignObject body select {
+  font-size: 8pt;
+  border: 1px solid gray;
+  box-sizing: border-box;
+  position: absolute;
+  transform: translate(0, -50%);
+  top: 50%;
+}
+
+.joint-element foreignObject body input[type='text'] {
+  font-family: 'monospace';
+  width: 100%;
+}
+
+.joint-element foreignObject.tooltip body input[type='number'] {
+  width: calc(100% - 10px);
+}
+
+.joint-element foreignObject body a {
+  text-decoration: none;
+}
+
+.joint-element input.invalid, table.memeditor input.invalid {
+  background: #ffaaaa;
+}
+
+.joint-element foreignObject.tooltip {
+  visibility: hidden;
+  opacity:0;
+  transition:visibility 0s linear 0.5s,opacity 0.5s linear;
+}
+
+.joint-element foreignObject.tooltip:hover,
+g:hover > foreignObject.tooltip {
+  visibility: visible;
+  opacity:1;
+  transition-delay:0s;
+}
+
+.joint-element foreignObject.tooltip body {
+  border: 1px solid gray;
+  box-sizing: border-box;
+  background: white;
+  padding: 5px;
+}
+
+div.wire_hover {
+  position: fixed;
+  pointer-events: none;
+  background: white;
+  border: 1px solid black;
+  padding: 5px;
+  font-size: 8pt;
+  z-index: 200;
+}
+
+.joint-element .numvalue {
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.joint-element text.numvalue {
+  fill: black;
+  text-anchor: middle;
+}
+
+table.monitor tr {
+  padding: 0; margin: 0;
+  font-size: 10px;
+}
+
+table.monitor td {
+  padding: 0; margin: 0;
+}
+
+table.monitor {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table.monitor td.name {
+  width: 100%;
+}
+
+table.monitor input[name=trigger], table.monitor select[name=trigger] {
+  width: 5em;
+}
+
+canvas.wavecanvas {
+  display: block;
+}
+
+table.memeditor {
+  margin-top: 0.5em;
+}
+
+table.memeditor input {
+  font-family: monospace;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  padding: 0.2em 0.5em;
+}
+
+div[data-iopanel="input"] input, div[data-iopanel="output"] {
+  font-family: monospace;
+}
+
+table.memeditor td:first-child {
+  font-family: monospace;
+  padding-right: 1em;
+}
+
+table.memeditor input.flash {
+  animation-name: flash-animation;
+  animation-duration: 1s;
+}
+
+table.memeditor input.isread {
+  box-shadow: 0px 0px 5px green;
+}
+
+table.memeditor input.iswrite {
+  box-shadow: 0px 0px 5px red;
+}
+
+table.memeditor input.iswrite.isread {
+  box-shadow: 1px 1px 5px -1px red,
+  -1px -1px 5px -1px green;
+}
+
+@keyframes flash-animation {
+  from { background-color: yellow; }
+  to   { background-color: default; }
+}
+
+.joint-element circle.current_state {
+  fill: yellow;
+}
+
+.joint-link path.next_trans, marker path.next_trans {
+  stroke: #03c03c;
+  fill: #03c03c;
+}
+
+/* jqueryui fix */
+.ui-dialog, .ui-dialog-content {
+  box-sizing: content-box;
+}

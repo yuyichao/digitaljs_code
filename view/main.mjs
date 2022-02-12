@@ -3,6 +3,7 @@
 'use strict';
 
 import './scss/app.scss';
+import './scss/digitaljs.scss';
 import $ from 'jquery';
 import 'jquery-ui/ui/widgets/dialog.js';
 import * as digitaljs from 'digitaljs';

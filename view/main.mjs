@@ -20,6 +20,11 @@ const vscode = acquireVsCodeApi();
 digitaljs.paperOptions.gridSize = 0.5;
 digitaljs.paperOptions.moveThreshold = 10;
 
+digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].textContent = ''
+digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].className += ' codicon codicon-zoom-in';
+digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].style.color = 'black';
+digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].style.textAlign = 'left';
+
 function circuit_empty(circuit) {
     if (!circuit)
         return true;

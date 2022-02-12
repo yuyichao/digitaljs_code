@@ -4,6 +4,7 @@
 
 import './scss/app.scss';
 import $ from 'jquery';
+import 'jquery-ui/ui/widgets/dialog.js';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import svgPanZoom from 'svg-pan-zoom';

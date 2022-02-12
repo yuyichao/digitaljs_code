@@ -14,16 +14,21 @@
 }
 
 .gutter {
-  background-color: var(--vscode-widget-shadow);
+  background-color: var(--divider-background);
 
   background-repeat: no-repeat;
   background-position: 50%;
 }
 
-.gutter.gutter-vertical {
-  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');
+.vscode-dark .gutter.gutter-vertical {
+  background-image: url('images/gutter-dark.png');
   cursor: ns-resize;
 }
+.vscode-light .gutter.gutter-vertical {
+  background-image: url('images/gutter-light.png');
+  cursor: ns-resize;
+}
+
 #paper, #monitorbox {
   box-sizing: border-box;
   overflow: auto;

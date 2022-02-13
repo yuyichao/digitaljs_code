@@ -12,7 +12,7 @@ function baseSelectMarkupHTML(display3vl, bits, base) {
     const markup = display3vl.usableDisplays('read', bits)
                              .map(n => '<vscode-option value="' + n + '"' + (n == base ? ' selected="selected"' : '') +'>' + n + '</vscode-option>');
     return '<vscode-dropdown name="base" position="below">' + markup.join("") + '</vscode-dropdown>';
-};
+}
 
 function getWireId(wire) {
     const hier = [wire.cid];

@@ -151,6 +151,11 @@ body {
   pointer-events: all;
 }
 
+// .joint-element foreignObject.tooltip body input,
+select {
+  height: calc(var(--input-height) * 1px);
+}
+
 .joint-element foreignObject body input[type='text'],
 .joint-element foreignObject body input[type='number'],
 .joint-element foreignObject body select {

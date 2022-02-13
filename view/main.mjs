@@ -27,6 +27,149 @@ digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].className +=
 digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].style.color = 'black';
 digitaljs.cells.Box.prototype.markupZoom[0].children[0].children[0].style.textAlign = 'left';
 
+function baseSelectMarkupHTML(display3vl, bits, base) {
+    const markup = display3vl.usableDisplays('read', bits)
+                             .map(n => '<option value="' + n + '"' + (n == base ? ' selected="selected"' : '') +'>' + n + '</option>');
+    return '<select name="base" style="vertical-align: middle;">' + markup.join("") + '</select>';
+}
+
+digitaljs.cells.Memory.prototype.createEditor = function () {
+    const display3vl = this.graph._display3vl;
+    const div = $('<div>', {
+        title: "Memory contents: " + this.get('label')
+    }).appendTo('html > body');
+    div.append($(
+        '<div class="btn-toolbar" role="toolbar">' +
+        '<button name="prev" type="button" class="btn btn-secondary" style="vertical-align: middle;" title="Previous page"><i class="codicon codicon-arrow-left"></i></button>' +
+        '<button name="next" type="button" class="btn btn-secondary" style="vertical-align: middle;" title="Next page"><i class="codicon codicon-arrow-right"></i></button>' +
+        '<span style="padding-left:2px;"></span>' +
+        baseSelectMarkupHTML(display3vl, this.get('bits'), 'hex') +
+        '</div>' +
+        '<table class="memeditor">' +
+        '</table>'));
+    const words = this.get('words');
+    const memdata = this.memdata;
+    const ahex = Math.ceil(this.get('abits')/4);
+    const rows = 8;
+    let columns, address = 0;
+    const get_numbase = () => div.find('select[name=base]').val();
+    const getCell = (addr) => {
+        const r = Math.floor((addr - address) / columns);
+        const c = addr - address - r * columns;
+        return div.find('table tr:nth-child('+(r+1)+') td:nth-child('+(c+2)+') input');
+    }
+    const clearMarkings = (sigs) => {
+        for (const [portname, port] of this._memrdports()) {
+            getCell(this._calcaddr(sigs[portname + 'addr'])).removeClass('isread');
+        }
+        for (const [portname, port] of this._memwrports()) {
+            getCell(this._calcaddr(sigs[portname + 'addr'])).removeClass('iswrite');
+        }
+    }
+    const displayMarkings = (sigs) => {
+        for (const [portname, port] of this._memrdports()) {
+            getCell(this._calcaddr(sigs[portname + 'addr'])).addClass('isread');
+        }
+        for (const [portname, port] of this._memwrports()) {
+            getCell(this._calcaddr(sigs[portname + 'addr'])).addClass('iswrite');
+        }
+    }
+    const updateStuff = () => {
+        const numbase = get_numbase();
+        div.find('button[name=prev]').prop('disabled', address <= 0);
+        div.find('button[name=next]').prop('disabled', address + rows * columns >= words);
+        let row = div.find('table tr:first-child');
+        const memdata = this.memdata;
+        for (let r = 0; r < rows; r++, row = row.next()) {
+            if (address + r * columns >= words) break;
+            const addrs = (address + r * columns).toString(16);
+            let col = row.find('td:first-child');
+            col.text('0'.repeat(ahex - addrs.length) + addrs)
+            col = col.next();
+            for (let c = 0; c < columns; c++, col = col.next()) {
+                if (address + r * columns + c >= words) break;
+                col.find('input').val(display3vl.show(numbase, memdata.get(address + r * columns + c)))
+                   .removeClass('invalid');
+            }
+        }
+        displayMarkings(this.get('inputSignals'));
+    };
+    const redraw = () => {
+        const numbase = get_numbase();
+        const ptrn = display3vl.pattern(numbase);
+        const ds = display3vl.size(numbase, this.get('bits'));
+        columns = Math.min(words, 16, Math.ceil(32/ds));
+        address = Math.max(0, Math.min(words - rows * columns, address));
+        const table = div.find('table');
+        table.empty();
+        for (let r = 0; r < rows; r++) {
+            if (address + r * columns >= words) break;
+            const row = $('<tr>');
+            $('<td>').appendTo(row);
+            for (let c = 0; c < columns; c++) {
+                if (address + r * columns + c >= words) break;
+                const col = $('<td>');
+                $('<input type="text">')
+                    .attr('size', ds)
+                    .attr('maxlength', ds)
+                    .attr('pattern', ptrn)
+                    .appendTo(col);
+                col.appendTo(row);
+            }
+            row.appendTo(table);
+        }
+        updateStuff();
+    };
+    redraw();
+    div.find("select[name=base]").on('change', redraw);
+    div.find("button[name=prev]").on('click', () => {
+        clearMarkings(this.get('inputSignals'));
+        address = Math.max(0, address - rows * columns);
+        updateStuff();
+    });
+    div.find("button[name=next]").on('click', () => {
+        clearMarkings(this.get('inputSignals'));
+        address = Math.min(words - rows * columns, address + rows * columns);
+        updateStuff();
+    });
+    div.on("change", "input", (evt) => {
+        const numbase = get_numbase();
+        const target = $(evt.target);
+        const c = target.closest('td').index() - 1;
+        const r = target.closest('tr').index();
+        const addr = address + r * columns + c;
+        const bits = this.get('bits');
+        if (display3vl.validate(numbase, evt.target.value, bits)) {
+            const val = display3vl.read(numbase, evt.target.value, bits);
+            memdata.set(addr, val);
+            this.trigger('manualMemChange', this, addr, val);
+            target.removeClass('invalid');
+        } else {
+            target.addClass('invalid');
+        }
+    });
+    const mem_change_cb = (addr, data) => {
+        if (addr < address || addr > address + rows * columns) return;
+        const numbase = get_numbase();
+        const z = getCell(addr)
+            .val(display3vl.show(numbase, memdata.get(addr)))
+            .removeClass('invalid')
+            .removeClass('flash');
+        setTimeout(() => { z.addClass('flash') }, 10);
+    };
+    const input_change_cb = (gate, sigs) => {
+        clearMarkings(this.previous('inputSignals'));
+        displayMarkings(sigs);
+    };
+    this.on("memChange", mem_change_cb);
+    this.on("change:inputSignals", input_change_cb);
+    return { div, close: () => {
+        div.remove();
+        this.off("memChange", mem_change_cb);
+        this.off("change:inputSignals", input_change_cb);
+    }};
+};
+
 function circuit_empty(circuit) {
     if (!circuit)
         return true;

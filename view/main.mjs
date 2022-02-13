@@ -7,6 +7,7 @@ import './scss/digitaljs.scss';
 import './scss/jquery-ui.scss';
 import $ from 'jquery';
 import 'jquery-ui/ui/widgets/dialog.js';
+import './touch-punch.mjs';
 import * as digitaljs from 'digitaljs';
 import * as digitaljs_lua from 'digitaljs_lua';
 import svgPanZoom from 'svg-pan-zoom';

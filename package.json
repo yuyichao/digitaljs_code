@@ -106,6 +106,12 @@
                 "category": "DigitalJS"
             },
             {
+                "command": "digitaljs.showLuaTerminal",
+                "title": "Show Lua Terminal",
+                "icon": "$(terminal)",
+                "category": "DigitalJS"
+            },
+            {
                 "command": "digitaljs.removeSource",
                 "title": "Remove",
                 "icon": "$(dash)",
@@ -162,6 +168,11 @@
                     "command": "digitaljs.exportImage",
                     "when": "view == digitaljs-proj-files",
                     "group": "navigation@2"
+                },
+                {
+                    "command": "digitaljs.showLuaTerminal",
+                    "when": "view == digitaljs-proj-files",
+                    "group": "navigation@3"
                 }
             ],
             "editor/title": [

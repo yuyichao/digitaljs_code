@@ -7,6 +7,7 @@ import * as path from 'path';
 import { set_yosys_wasm_uri } from './requests.mjs';
 import { EditorProvider } from './editor.mjs';
 import { FilesView } from './files_view.mjs';
+import { LuaTerminal } from './lua_terminal.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
 import { read_txt_file, write_txt_file } from './utils.mjs';
@@ -155,6 +156,9 @@ class DigitalJS {
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.exportImage',
                                             () => this.#exportImage()));
+        context.subscriptions.push(
+            vscode.commands.registerCommand('digitaljs.showLuaTerminal',
+                                            () => this.#showLuaTerminal()));
         context.subscriptions.push(
             vscode.commands.registerCommand('digitaljs.removeSource',
                                             (item) => this.#removeSource(item)));
@@ -617,6 +621,22 @@ class DigitalJS {
             cmd.subcircuit_title = item.label;
         }
         this.postPanelMessage(cmd);
+    }
+    #showLuaTerminal() {
+        const doc = this.#document;
+        if (!doc)
+            return;
+        if (!doc.luaTerminal) {
+            const pty = new LuaTerminal(this.#circuitView);
+            const term = vscode.window.createTerminal({
+                iconPath: this.iconPath,
+                name: `Lua ${path.basename(doc.uri.path)}`,
+                pty: pty
+            });
+            doc.luaTerminal = term;
+            pty.onDidDispose(() => delete doc.luaTerminal);
+        }
+        return doc.luaTerminal.show();
     }
     #removeSource(item) {
         if (!this.#document)

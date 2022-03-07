@@ -414,6 +414,12 @@ export class Document {
                 this.#sources.scriptStopped(message.name);
                 return;
             case 'luaerror': {
+                if (this.luaTerminal) {
+                    this.luaTerminal.creationOptions.pty.print(`ERROR: ${message.message}`);
+                    if (this.luaTerminal === vscode.window.activeTerminal) {
+                        return;
+                    }
+                }
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
                 if (rel_compat2(this.#sources.doc_dir_uri, uri))
@@ -422,11 +428,18 @@ export class Document {
                 return;
             }
             case 'luaprint': {
+                const msg = message.messages.join('\t');
+                if (this.luaTerminal) {
+                    this.luaTerminal.creationOptions.pty.print(msg);
+                    if (this.luaTerminal === vscode.window.activeTerminal) {
+                        return;
+                    }
+                }
                 let name = message.name;
                 let uri = vscode.Uri.parse(name);
                 if (rel_compat2(this.#sources.doc_dir_uri, uri))
                     name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
-                vscode.window.showInformationMessage(`${name}: ${message.messages.join('\t')}`);
+                vscode.window.showInformationMessage(`${name}: ${msg}`);
                 return;
             }
             case 'showmarker':

@@ -57,6 +57,8 @@ Contributions are welcome!
 * Using `Lua` scripts to customize/seed the simulation
   (using [`digitaljs_lua`](https://github.com/tilk/digitaljs_lua))
 
+* (Experimental) Lua command line
+
 * Viewing and simulation multiple circuits simultaneously
 
 * Zoom and pan support with both mouse and touch screen.

@@ -208,8 +208,11 @@ export default class REPL {
     // #onDidOverrideDimensions
     onDidWrite
     #onDidWrite
+
     onDidDispose
     #onDidDispose
+    onAbort
+    #onAbort
 
     #prompt_cb
     #ps_len
@@ -242,6 +245,8 @@ export default class REPL {
         this.onDidWrite = this.#onDidWrite.event;
         this.#onDidDispose = new vscode.EventEmitter();
         this.onDidDispose = this.#onDidDispose.event;
+        this.#onAbort = new vscode.EventEmitter();
+        this.onAbort = this.#onAbort.event;
         this.#cursor = new Cursor();
     }
 
@@ -321,6 +326,22 @@ export default class REPL {
         }
         else if (data === '\x1b\r') {
             return this.#new_line();
+        }
+        else if (data === '\x03') {
+            if (this.#lines.length > 1 || this.#lines[0].text != this.#ps0) {
+                this.#do_cursor_start_of_line();
+                this.#do_cursor_up(this.#count_lines(0, this.#cursor.line) +
+                                   this.#cursor.subline);
+                this.#do_clear_end_of_screen();
+                this.#new_prompt();
+                return;
+            }
+            this.#write('^C');
+            this.#do_cursor_start_of_nextline();
+            this.#do_clear_end_of_screen();
+            this.#new_prompt();
+            this.#onAbort.fire();
+            return;
         }
         this.#input_text(data);
     }

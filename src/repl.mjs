@@ -220,7 +220,7 @@ export default class REPL {
     #lines = []
     #cursor
     #repl_line = 0
-    #print_cursor = [0, 0]
+    #print_col = 0
 
     #cursor_cb = []
     constructor(prompt_cb, ps0, ps1) {
@@ -259,7 +259,7 @@ export default class REPL {
             const cursor = cmd.match(/^(\d+);(\d+)R$/);
             if (cursor) {
                 for (const cb of this.#cursor_cb)
-                    cb([cursor[1] - 1, cursor[2] - 1]);
+                    cb(cursor[2] - 1);
                 this.#cursor_cb.length = 0;
                 return;
             }
@@ -325,12 +325,16 @@ export default class REPL {
         this.#input_text(data);
     }
     setDimensions(dims) {
+        if (this.#columns == dims.columns)
+            return;
         this.#columns = dims.columns;
         this.#rewrap_lines();
     }
 
     // Basic terminal functions
     #write(data) {
+        if (data.length === 0)
+            return;
         this.#onDidWrite.fire(data);
     }
     #do_cursor_up(n = 1) {
@@ -365,7 +369,7 @@ export default class REPL {
         this.#write('\r');
     }
     #do_cursor_start_of_nextline() {
-        this.#write('\r\x1b[B');
+        this.#write('\r\n');
     }
     #do_cursor_start_of_prevline() {
         this.#write('\r\x1b[A');
@@ -376,14 +380,11 @@ export default class REPL {
     #do_clear_end_of_screen() {
         this.#write(`\x1b[J`);
     }
-    #get_cursor() {
+    #get_cursor_col() {
         this.#write(`\x1b[6n`);
         return new Promise((resolve) => {
             this.#cursor_cb.push(resolve);
         });
-    }
-    #do_set_cursor(line, column) {
-        this.#write(`\x1b[${line + 1};${column + 1}H`);
     }
 
     // Terminal function with buffer management
@@ -575,7 +576,7 @@ export default class REPL {
             this.#lines.splice(this.#cursor.line, 1);
             this.#cursor.line -= 1;
             this.#rewrap_lines([this.#cursor.line, this.#cursor.line + 1],
-                               [this.#cursor.line, this.#lines.length]);
+                               [this.#cursor.line, this.#lines.length], true);
             return;
         }
         const curline_suffix = curline.text.substring(redraw_lineidx + 1);
@@ -584,7 +585,7 @@ export default class REPL {
             redraw_lineidx - 1 >= prefix_idxlen)
             redraw_lineidx -= 1;
         curline.text = curline_prefix + curline_suffix;
-        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx - 1);
+        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx - 1, true);
     }
     #delete_newline() {
         // Assume cursor is at the end of the current line.
@@ -597,7 +598,7 @@ export default class REPL {
         curline.text = curline.text + nextline.text.substring(this.#ps1.length);
         this.#lines.splice(this.#cursor.line + 1, 1);
         this.#rewrap_lines([this.#cursor.line, this.#cursor.line + 1],
-                           [this.#cursor.line, this.#lines.length]);
+                           [this.#cursor.line, this.#lines.length], true);
     }
     #delete_after() {
         const curline = this.#lines[this.#cursor.line];
@@ -608,7 +609,7 @@ export default class REPL {
             return this.#delete_newline();
         const curline_suffix = curline.text.substring(redraw_lineidx + 1);
         curline.text = curline_prefix + curline_suffix;
-        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx);
+        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx, true);
     }
     #kill_line() {
         const curline = this.#lines[this.#cursor.line];
@@ -618,25 +619,23 @@ export default class REPL {
         if (redraw_lineidx >= curline.text.length)
             return this.#delete_newline();
         curline.text = curline_prefix;
-        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx);
+        this.#redraw_cursor_line(redraw_lineidx, this.#cursor.lineidx, true);
     }
     #new_line() {
         this.#input_text('\n');
     }
-    async #try_submit() {
+    #try_submit() {
         let text = this.#lines[0].text.substring(this.#ps0.length);
         const ninput_lines = this.#lines.length;
         for (let lineno = 1; lineno < ninput_lines; lineno++)
             text += '\n' + this.#lines[lineno].text.substring(this.#ps1.length);
         if (!this.#prompt_cb(text))
             return;
-        // Block printing until we are done
-        this.#print_worker_running = true;
+        this.#do_cursor_down(this.#count_lines(this.#cursor.line, ninput_lines) -
+                             this.#cursor.subline - 1);
         this.#do_cursor_start_of_nextline();
-        const start = await this.#get_cursor();
-        this.#repl_line = start[0];
+        this.#cursor.pos[0] = 0;
         this.#new_prompt();
-        this.#print_worker();
     }
     #input_text(data) {
         // Normalize new line, remove control charaters that aren't \t or \n
@@ -666,16 +665,16 @@ export default class REPL {
             this.#cursor.line = old_lineno + lines.length - 1;
             this.#cursor.lineidx = pre_cursor.length;
             const range = [old_lineno, old_lineno + lines.length];
-            this.#rewrap_lines(range, range);
+            this.#rewrap_lines(range, range, true);
         }
     }
     #new_prompt() {
-        // Assume that `this.#repl_line` is set already.
+        // Assume that `this.#cursor.pos[0]` is set already.
         this.#lines = [new Line(this.#ps0)];
-        this.#print_cursor = [this.#repl_line, 0];
+        this.#print_col = 0;
         this.#cursor.line = 0;
         this.#cursor.lineidx = this.#ps0.length;
-        this.#rewrap_lines(undefined, [0, 1]);
+        this.#rewrap_lines(undefined, [0, 1], true);
     }
 
     // Terminal utility functions
@@ -685,22 +684,18 @@ export default class REPL {
             res += this.#lines[lineno].nsublines;
         return res;
     }
-    #redraw_cursor() {
-        this.#do_set_cursor(this.#repl_line + this.#cursor.pos[0], this.#cursor.pos[1]);
-    }
-    #redraw_lines(from_line, set_init_cursor) {
+    #redraw_lines(from_line) {
         // Lines are assumed to be wrapped and cursor is assumed to be up-to-date.
-        if (set_init_cursor)
-            this.#do_set_cursor(this.#repl_line + this.#count_lines(0, from_line), 0);
         this.#do_clear_end_of_screen();
         const nlines = this.#lines.length;
         for (let lineno = from_line; lineno < nlines; lineno++) {
             this.#write(this.#lines[lineno].draw_text(0));
             this.#do_cursor_start_of_nextline();
         }
-        this.#redraw_cursor();
+        this.#do_cursor_up(this.#count_lines(this.#cursor.line, nlines) - this.#cursor.subline);
+        this.#do_cursor_right(this.#cursor.pos[1]);
     }
-    #redraw_cursor_line(redraw_lineidx, cursor_lineidx) {
+    #redraw_cursor_line(redraw_lineidx, cursor_lineidx, deleted) {
         // Assume cursor is at `this.#cursor` and assume everything about the line
         // hasn't change before `redraw_lineidx`.
         // Rewrap and redraw the cursor line (from redraw_lineidx)
@@ -710,26 +705,25 @@ export default class REPL {
 
         // The cursor will be placed at cursor_lineidx on the cursor line.
         const line = this.#lines[this.#cursor.line];
+        const last_line = this.#cursor.line === this.#lines.length - 1;
         const old_nsublines = line.nsublines;
         line.rewrap(this.#columns, redraw_lineidx);
         const new_nsublines = line.nsublines;
         const redraw_cursor_linepos = line.locate_cursor(redraw_lineidx);
         this.#do_cursor_down(redraw_cursor_linepos[0] - this.#cursor.subline);
         this.#do_cursor_right(redraw_cursor_linepos[1] - this.#cursor.pos[1]);
-        if (old_nsublines === new_nsublines) {
-            this.#do_kill_line();
-        }
-        else {
+        if (old_nsublines !== new_nsublines && (deleted || !last_line))
             this.#do_clear_end_of_screen();
-        }
         this.#write(line.draw_text(redraw_lineidx));
+        if (old_nsublines === new_nsublines && deleted)
+            this.#do_kill_line();
         const line_offset = this.#cursor.pos[0] - this.#cursor.subline;
         const new_cursor_linepos = line.locate_cursor(cursor_lineidx);
         this.#cursor.lineidx = cursor_lineidx;
         this.#cursor.subline = new_cursor_linepos[0];
         this.#cursor.pos[0] = this.#cursor.subline + line_offset;
         this.#cursor.pos[1] = new_cursor_linepos[1];
-        if (old_nsublines === new_nsublines) {
+        if (old_nsublines === new_nsublines || last_line) {
             const cur_cursor_linepos = line.locate_cursor(line.text.length);
             this.#do_cursor_down(new_cursor_linepos[0] - cur_cursor_linepos[0]);
             this.#do_cursor_right(new_cursor_linepos[1] - cur_cursor_linepos[1]);
@@ -738,14 +732,11 @@ export default class REPL {
         this.#do_cursor_start_of_nextline();
         this.#redraw_lines(this.#cursor.line + 1);
     }
-    #rewrap_lines(rewrap_range, redraw_range) {
+    #rewrap_lines(rewrap_range, redraw_range, line_changed) {
         // lines within rewrap_range will be rewrapped.
         // lines that are rewrapped, ones after the first line where the start line changed,
         // and ones within the redraw range will be redrawn.
         const ninput_lines = this.#lines.length;
-        // No input yet
-        if (ninput_lines == 0)
-            return;
         if (rewrap_range === undefined)
             rewrap_range = [0, ninput_lines];
         if (redraw_range === undefined)
@@ -792,17 +783,21 @@ export default class REPL {
                 clear_at = lineno;
             }
         }
+        if (redraw_set.size === 0 && clear_at === ninput_lines && !line_changed)
+            return;
 
         // Redraw individual lines
         let cursor_set = false;
         let skipped_lines = 0;
-        const move_cursor = () => {
+        const move_cursor = (lineno) => {
             if (cursor_set) {
                 this.#do_cursor_down(skipped_lines);
                 skipped_lines = 0;
             }
             else {
-                this.#do_set_cursor(this.#repl_line + skipped_lines, 0);
+                // Assume cursor row is correct.
+                this.#do_cursor_start_of_line();
+                this.#do_cursor_down(this.#count_lines(0, lineno) - this.#cursor.pos[0]);
                 cursor_set = true;
             }
         };
@@ -812,12 +807,12 @@ export default class REPL {
                 skipped_lines += line.nsublines;
                 continue;
             }
-            move_cursor();
+            move_cursor(lineno);
             this.#write(line.draw_text(0));
             this.#do_kill_line();
             this.#do_cursor_start_of_nextline();
         }
-        move_cursor();
+        move_cursor(clear_at);
         // Trust `this.#cursor.line` and `this.#cursor.lineidx`,
         // recompute `this.#cursor.subline` and `this.#cursor.pos`
         const cursor_line = this.#lines[this.#cursor.line];
@@ -833,24 +828,24 @@ export default class REPL {
     // API
     async #print() {
         // Clear prompt
-        this.#do_set_cursor(this.#repl_line, 0);
+        this.#do_cursor_start_of_line();
+        this.#do_cursor_up(this.#count_lines(0, this.#cursor.line) + this.#cursor.subline);
         this.#do_clear_end_of_screen();
-        this.#do_set_cursor(this.#print_cursor[0], this.#print_cursor[1]);
+        if (this.#print_col > 0) {
+            this.#do_cursor_up();
+            this.#do_cursor_right(this.#print_col);
+        }
         const data = this.#print_string.replaceAll(/\r\n/g, '\n').replaceAll(/[\r\n]/g, '\r\n');
         this.#print_string = '';
         this.#write(data);
         // Save cursor
-        this.#print_cursor = await this.#get_cursor();
+        const cursor_col = this.#get_cursor_col();
         // Clear screen and move to prompt start
         // Clear till end of screen, this more or less matches zsh's behavior.
         this.#do_clear_end_of_screen();
-        if (this.#print_cursor[1] == 0) {
-            this.#repl_line = this.#print_cursor[0];
-        }
-        else {
+        this.#print_col = await cursor_col;
+        if (this.#print_col !== 0)
             this.#do_cursor_start_of_nextline();
-            this.#repl_line = this.#print_cursor[0] + 1;
-        }
         this.#redraw_lines(0);
     }
     async #print_worker() {

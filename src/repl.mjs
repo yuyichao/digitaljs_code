@@ -38,6 +38,7 @@ function array_equal(a, b) {
 class Line {
     text = ''
     #sublinewrap = []
+    start
     constructor(text = '') {
         this.text = text;
     }
@@ -597,7 +598,7 @@ export default class REPL {
             this.#lines.splice(this.#cursor.line, 1);
             this.#cursor.line -= 1;
             this.#rewrap_lines([this.#cursor.line, this.#cursor.line + 1],
-                               [this.#cursor.line, this.#lines.length], true);
+                               [this.#cursor.line, this.#lines.length]);
             return;
         }
         const curline_suffix = curline.text.substring(redraw_lineidx + 1);
@@ -619,7 +620,7 @@ export default class REPL {
         curline.text = curline.text + nextline.text.substring(this.#ps1.length);
         this.#lines.splice(this.#cursor.line + 1, 1);
         this.#rewrap_lines([this.#cursor.line, this.#cursor.line + 1],
-                           [this.#cursor.line, this.#lines.length], true);
+                           [this.#cursor.line, this.#lines.length]);
     }
     #delete_after() {
         const curline = this.#lines[this.#cursor.line];
@@ -686,7 +687,7 @@ export default class REPL {
             this.#cursor.line = old_lineno + lines.length - 1;
             this.#cursor.lineidx = pre_cursor.length;
             const range = [old_lineno, old_lineno + lines.length];
-            this.#rewrap_lines(range, range, true);
+            this.#rewrap_lines(range, range);
         }
     }
     #new_prompt() {
@@ -695,15 +696,19 @@ export default class REPL {
         this.#print_col = 0;
         this.#cursor.line = 0;
         this.#cursor.lineidx = this.#ps0.length;
-        this.#rewrap_lines(undefined, [0, 1], true);
+        this.#rewrap_lines(undefined, [0, 1]);
     }
 
     // Terminal utility functions
+    #start_line(lineno) {
+        const ninput_lines = this.#lines.length;
+        if (lineno < ninput_lines)
+            return this.#lines[lineno].start;
+        const line = this.#lines[ninput_lines - 1];
+        return line.start + line.nsublines;
+    }
     #count_lines(start, end) {
-        let res = 0;
-        for (let lineno = start; lineno < end; lineno++)
-            res += this.#lines[lineno].nsublines;
-        return res;
+        return this.#start_line(end) - this.#start_line(start);
     }
     #redraw_lines(from_line) {
         // Lines are assumed to be wrapped and cursor is assumed to be up-to-date.
@@ -753,7 +758,7 @@ export default class REPL {
         this.#do_cursor_start_of_nextline();
         this.#redraw_lines(this.#cursor.line + 1);
     }
-    #rewrap_lines(rewrap_range, redraw_range, line_changed) {
+    #rewrap_lines(rewrap_range, redraw_range) {
         // lines within rewrap_range will be rewrapped.
         // lines that are rewrapped, ones after the first line where the start line changed,
         // and ones within the redraw range will be redrawn.
@@ -765,13 +770,22 @@ export default class REPL {
         const [rewrap_start, rewrap_end] = rewrap_range;
         let [redraw_start, redraw_end] = redraw_range;
         let redraw_set = new Set();
+        let linestart_changed = false;
+        let start_line = this.#lines[rewrap_start].start;
+        if (start_line === undefined)
+            start_line = rewrap_start === 0 ? 0 : this.#lines[rewrap_start - 1].start
         for (let lineno = rewrap_start; lineno < rewrap_end; lineno++) {
             const line = this.#lines[lineno];
+            if (line.start !== start_line) {
+                line.start = start_line;
+                linestart_changed = true;
+            }
             const old_nlines = line.nsublines;
             const changed = line.rewrap(this.#columns);
+            const new_nlines = line.nsublines;
+            start_line += new_nlines;
             if (redraw_start <= lineno && redraw_end >= ninput_lines)
                 continue;
-            const new_nlines = line.nsublines;
             if (old_nlines !== new_nlines) {
                 redraw_start = lineno;
                 redraw_end = ninput_lines;
@@ -779,6 +793,18 @@ export default class REPL {
             }
             if (changed) {
                 redraw_set.add(lineno);
+            }
+        }
+        if (rewrap_end < ninput_lines) {
+            const nextline = this.#lines[rewrap_end];
+            if (nextline.start !== start_line) {
+                nextline.start = start_line;
+                linestart_changed = true;
+                for (let lineno = rewrap_end + 1; lineno < ninput_lines; lineno++) {
+                    const line = this.#lines[lineno];
+                    line.start = start_line;
+                    start_line += line.nsublines;
+                }
             }
         }
 
@@ -804,7 +830,7 @@ export default class REPL {
                 clear_at = lineno;
             }
         }
-        if (redraw_set.size === 0 && clear_at === ninput_lines && !line_changed)
+        if (redraw_set.size === 0 && clear_at === ninput_lines && !linestart_changed)
             return;
 
         // Redraw individual lines

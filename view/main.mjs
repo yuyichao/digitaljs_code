@@ -202,34 +202,66 @@ function max_dialog_height() {
 class LuaRunner {
     #djs
     #runners
+    #repl_runner
+    #repl_queue = []
     constructor(djs) {
         this.#djs = djs;
         this.#runners = {};
     }
 
-    #error(name, e) {
-        vscode.postMessage({ command: "luaerror", name, message: e.luaMessage });
+    #error(name, e, isrepl) {
+        vscode.postMessage({ command: "luaerror", name, message: e.luaMessage, isrepl });
     }
-    #getRunner(name) {
-        let runner = this.#runners[name];
-        if (runner)
-            return runner;
-        runner = new digitaljs_lua.LuaRunner(this.#djs.circuit);
+    #getRunner(name, isrepl) {
+        if (isrepl) {
+            if (this.#repl_runner) {
+                this.#repl_runner.djs_name = name;
+                return this.#repl_runner;
+            }
+        }
+        const runner = new digitaljs_lua.LuaRunner(this.#djs.circuit);
+        runner.djs_name = name;
         runner.on('thread:stop', (pid) => {
-            vscode.postMessage({ command: "luastop", name });
+            vscode.postMessage({ command: "luastop", name: runner.djs_name, isrepl });
+            if (!isrepl || this.#repl_queue.length <= 0)
+                return;
+            const { name, script } = this.#repl_queue[0];
+            this.#repl_queue.splice(0, 1);
+            this.#run(name, script, true);
         });
         runner.on('thread:error', (pid, e) => {
-            this.#error(name, e);
+            this.#error(runner.djs_name, e, isrepl);
         });
         runner.on('print', msgs => {
-            vscode.postMessage({ command: "luaprint", name, messages: msgs });
+            vscode.postMessage({ command: "luaprint", name: runner.djs_name,
+                                 messages: msgs, isrepl });
         });
-        this.#runners[name] = runner;
+        if (isrepl) {
+            this.#repl_runner = runner;
+        }
+        else {
+            this.#runners[name] = runner;
+        }
         return runner;
     }
-    run(name, script) {
-        this.stop(name);
-        const runner = this.#getRunner(name);
+    run(name, script, isrepl) {
+        if (isrepl) {
+            const runner = this.#repl_runner;
+            if (runner && runner.running_pid !== undefined) {
+                const pid = runner.running_pid;
+                if (runner.isThreadRunning(pid)) {
+                    this.#repl_queue.push({ name, script });
+                    return;
+                }
+            }
+        }
+        else {
+            this.stop(name);
+        }
+        this.#run(name, script, isrepl);
+    }
+    #run(name, script, isrepl) {
+        const runner = this.#getRunner(name, isrepl);
         let pid;
         try {
             pid = runner.runThread(script);
@@ -244,19 +276,27 @@ class LuaRunner {
             }
         }
         if (pid !== undefined) {
-            vscode.postMessage({ command: "luastarted", name });
+            vscode.postMessage({ command: "luastarted", name, isrepl });
         }
     }
-    stop(name) {
-        const helper = this.#runners[name];
-        if (!helper)
+    stop(name, isrepl, quit) {
+        const runner = isrepl ? this.#repl_runner : this.#runners[name];
+        if (!runner)
             return;
-        const pid = helper.running_pid;
+        if (!isrepl) {
+            delete this.#runners[name];
+        }
+        else {
+            if (quit)
+                this.#repl_runner = undefined;
+            this.#repl_queue.length = 0;
+        }
+        const pid = runner.running_pid;
         if (pid === undefined)
             return;
-        if (helper.isThreadRunning(pid)) {
-            helper.stopThread(pid);
-            delete helper.running_pid;
+        if (runner.isThreadRunning(pid)) {
+            runner.stopThread(pid);
+            delete runner.running_pid;
         }
     }
     shutdown() {
@@ -544,10 +584,10 @@ class DigitalJS {
                 this.#fastForwardSim();
                 return;
             case 'runlua':
-                this.#lua.run(message.name, message.script);
+                this.#lua.run(message.name, message.script, message.isrepl);
                 return;
             case 'stoplua':
-                this.#lua.stop(message.name);
+                this.#lua.stop(message.name, message.isrepl, message.quit);
                 return;
             case 'exportimage': {
                 const post_reply = (data, base64) => {

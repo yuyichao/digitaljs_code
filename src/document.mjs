@@ -415,15 +415,18 @@ export class Document {
                 return;
             case 'luaerror': {
                 if (this.luaTerminal) {
-                    this.luaTerminal.creationOptions.pty.print(`ERROR: ${message.message}`);
+                    this.luaTerminal.creationOptions.pty.print(`ERROR: ${message.message}\n`);
                     if (this.luaTerminal === vscode.window.activeTerminal) {
                         return;
                     }
                 }
                 let name = message.name;
-                let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.#sources.doc_dir_uri, uri))
-                    name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                if (!message.isrepl) {
+                    let uri = vscode.Uri.parse(name);
+                    if (rel_compat2(this.#sources.doc_dir_uri, uri)) {
+                        name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                    }
+                }
                 vscode.window.showErrorMessage(`${name}: ${message.message}`);
                 return;
             }
@@ -436,9 +439,12 @@ export class Document {
                     }
                 }
                 let name = message.name;
-                let uri = vscode.Uri.parse(name);
-                if (rel_compat2(this.#sources.doc_dir_uri, uri))
-                    name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                if (!message.isrepl) {
+                    let uri = vscode.Uri.parse(name);
+                    if (rel_compat2(this.#sources.doc_dir_uri, uri)) {
+                        name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
+                    }
+                }
                 vscode.window.showInformationMessage(`${name}: ${msg}`);
                 return;
             }

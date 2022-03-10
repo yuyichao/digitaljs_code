@@ -30,7 +30,6 @@ export class LuaTerminal extends REPL {
     #try_submit(data) {
         // TODO:
         // * automatically detect if we should take more input lines
-        // * automatically print result
         this.#view.post({
             command: 'runlua',
             name: `REPL[${this.#id++}]`,

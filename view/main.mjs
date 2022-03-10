@@ -264,7 +264,7 @@ class LuaRunner {
         const runner = this.#getRunner(name, isrepl);
         let pid;
         try {
-            pid = runner.runThread(script, { print_result: isrepl });
+            pid = runner.runThread(script, { print_result: isrepl, prepend_return: isrepl });
             runner.running_pid = pid;
         }
         catch (e) {

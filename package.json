@@ -317,6 +317,7 @@
         "digitaljs_lua": "github:yuyichao/digitaljs_lua#dev",
         "hammerjs": "^2.0.8",
         "lodash": "^4.17.21",
+        "luaparse": "^0.3.1",
         "path-browserify": "^1.0.1",
         "resize-observer-polyfill": "^1.5.1",
         "split-grid": "^1.0.11",

@@ -1083,7 +1083,10 @@ export default class REPL {
         this.#cursor.lineidx = this.#ps0.length;
         this.#display_row_range = [0, 0];
         this.#rewrap_lines([0, 1], [0, 1]);
-        this.#enable_mouse_tracking();
+        // Enabling mouse tracking like this makes it impossible to select and copy text
+        // (much like tmux) so disable it for now...
+        // This is the most useful for mobile devices but doesn't work with touch anyway...
+        // this.#enable_mouse_tracking();
     }
 
     // Terminal utility functions

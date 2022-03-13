@@ -84,7 +84,9 @@ class DigitalJS {
     #pendingSources = []
     #image_exts_set = false
     #image_exts = ['png', 'jpg', 'jpeg']
+    #global_state
     constructor(context) {
+        this.#global_state = context.globalState;
         // Paths
         const ext_uri = context.extensionUri;
         this.iconPath = vscode.Uri.joinPath(ext_uri, 'imgs', 'digitaljs.svg');
@@ -627,7 +629,7 @@ class DigitalJS {
         if (!doc)
             return;
         if (!doc.luaTerminal) {
-            const pty = new LuaTerminal(this.#circuitView);
+            const pty = new LuaTerminal(this.#circuitView, this.#global_state);
             const term = vscode.window.createTerminal({
                 iconPath: this.iconPath,
                 name: `Lua ${path.basename(doc.uri.path)}`,

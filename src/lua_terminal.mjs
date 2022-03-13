@@ -39,12 +39,45 @@ function try_parse_with_return(str) {
     return Math.min(res, try_parse(str));
 }
 
+const history_key = 'digitaljs.lua.repl_history';
+const history_limit = 131072;
+
+class LuaHistoryProvider {
+    #state
+    #cached
+    constructor(state) {
+        this.#state = state;
+    }
+    #get_history() {
+        return this.#state.get(history_key, []);
+    }
+    #set_history(list) {
+        this.#state.update(history_key, list);
+    }
+    get_latest_index() {
+        this.#cached = this.#get_history();
+        return this.#cached.length - 1;
+    }
+    get_at_index(idx) {
+        return this.#cached[idx];
+    }
+    push(text) {
+        // Reload in case someone changed it
+        const list = this.#get_history();
+        if (list.length >= history_limit)
+            list.splice(0, list.length - history_limit + 1);
+        list.push(text);
+        this.#set_history(list);
+    }
+}
+
 export class LuaTerminal extends REPL {
     #view
     #id = 0
 
-    constructor(view) {
+    constructor(view, state) {
         super(data => this.#try_submit(data), 'lua> ', '.... ');
+        this.set_history_provider(new LuaHistoryProvider(state));
         this.#view = view;
         this.onAbort(() => {
             this.#view.post({

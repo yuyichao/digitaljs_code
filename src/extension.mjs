@@ -451,6 +451,10 @@ class DigitalJS {
         // Make sure we links the new one in even if it's somehow hidden.
         switch_document(document, circuit_view);
         circuit_view.onDidDispose(() => {
+            if (document.luaTerminal) {
+                document.luaTerminal.dispose();
+                document.luaTerminal = undefined;
+            }
             const uri = document.uri;
             if (uri.scheme === 'untitled') {
                 const m = uri.path.match(/\/circuit-(\d*)\.digitaljs$/);

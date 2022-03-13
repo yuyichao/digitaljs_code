@@ -272,9 +272,15 @@ export default class REPL {
             const cursor = cmd.match(/^(\d+);(\d+)R$/);
             if (cursor) {
                 for (const cb of this.#cursor_cb)
-                    cb(cursor[2] - 1);
+                    cb([parseInt(cursor[1]) - 1, parseInt(cursor[2]) - 1]);
                 this.#cursor_cb.length = 0;
                 return;
+            }
+            const mouse = cmd.match(/^<(\d+);(\d+);(\d+)[mM]$/);
+            if (mouse) {
+                if (mouse[1] != '0')
+                    return;
+                return this.#cursor_move_to(parseInt(mouse[3]) - 1, parseInt(mouse[2]) - 1);
             }
             if (cmd === 'A') {
                 return this.#cursor_up();
@@ -611,12 +617,22 @@ export default class REPL {
     #do_clear_end_of_screen() {
         this.#write(`\x1b[J`);
     }
-    #get_cursor_col() {
+    #get_cursor() {
         this.#write(`\x1b[6n`);
         return new Promise((resolve) => {
             this.#cursor_cb.push(resolve);
         });
     }
+    async #get_cursor_col() {
+        return (await this.#get_cursor())[1];
+    }
+    #enable_mouse_tracking() {
+        // Decimal tracking with only mouse down.
+        this.#write('\x1b[?9;1006h');
+    }
+    // #disable_mouse_tracking() {
+    //     this.#write('\x1b[?9;1006l');
+    // }
 
     // Cursor utilities
     #move_cursor_rel(from_pos, to_pos) {
@@ -758,6 +774,31 @@ export default class REPL {
     }
 
     // Terminal function with buffer management
+    async #cursor_move_to(row, col) {
+        const cursor_screen_pos = await this.#get_cursor();
+        const cursor_pos = [...this.#cursor.pos];
+        const req_pos = [cursor_pos[0] + row - cursor_screen_pos[0], col];
+        const ninput_lines = this.#lines.length;
+        const has_screen_ub = this.#display_row_range[1] > 0;
+        const screen_ub = has_screen_ub ? this.#display_row_range[1] :
+                          this.#start_line(ninput_lines);
+        req_pos[0] = Math.min(screen_ub - 1, req_pos[0]);
+        req_pos[0] = Math.max(this.#display_row_range[0], req_pos[0]);
+        const lineno = this.#find_containing_line(req_pos[0]);
+        const line = this.#lines[lineno];
+        const subline = req_pos[0] - line.start;
+        const prefix_idxlen = lineno == 0 ? this.#ps0.length : this.#ps1.length;
+        let [lineidx, new_col] = line.find_index(subline, req_pos[1]);
+        if (lineidx < prefix_idxlen) {
+            lineidx = prefix_idxlen;
+            new_col = this.#ps_len;
+        }
+        this.#cursor.line = lineno;
+        this.#cursor.lineidx = lineidx;
+        this.#cursor.subline = subline;
+        this.#cursor.pos = [req_pos[0], new_col];
+        this.#move_cursor_rel(cursor_pos, this.#cursor.pos);
+    }
     #cursor_right() {
         const line = this.#lines[this.#cursor.line];
         const linemove = line.cursor_right(this.#cursor.subline, this.#cursor.lineidx);
@@ -1032,6 +1073,7 @@ export default class REPL {
         this.#cursor.lineidx = this.#ps0.length;
         this.#display_row_range = [0, 0];
         this.#rewrap_lines([0, 1], [0, 1]);
+        this.#enable_mouse_tracking();
     }
 
     // Terminal utility functions

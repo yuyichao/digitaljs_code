@@ -15,7 +15,7 @@ This was made possible by [DigitalJS](https://github.com/tilk/digitaljs),
 [yosys2digitaljs](https://github.com/tilk/yosys2digitaljs)
 and many other related projects by [Marek Materzok](http://www.tilk.eu/),
 [University of Wrocław](http://www.ii.uni.wroc.pl/) as well as
-the [Yosys](http://www.clifford.at/yosys/) open-source hardware synthesis framework.
+the [Yosys](https://yosyshq.net/yosys/) open-source hardware synthesis framework.
 This also borrows idea and code heavily from the original online version:
 [DigitalJS Online](https://github.com/tilk/digitaljs_online).
 

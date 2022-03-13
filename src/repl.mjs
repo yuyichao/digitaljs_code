@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as unicode from './unicode_utils.mjs';
+import REPLHistory from './repl_history.mjs';
 
 function array_equal(a, b) {
     const len = a.length;
@@ -233,7 +234,9 @@ export default class REPL {
     #print_col = 0
 
     #cursor_cb = []
+    #history
     constructor(prompt_cb, ps0, ps1) {
+        this.#history = new REPLHistory();
         this.#prompt_cb = prompt_cb;
         const ps0_len = unicode.getSubStringLength(ps0, 0, ps0.length);
         const ps1_len = unicode.getSubStringLength(ps1, 0, ps1.length);
@@ -255,6 +258,9 @@ export default class REPL {
         this.#onAbort = new vscode.EventEmitter();
         this.onAbort = this.#onAbort.event;
         this.#cursor = new Cursor();
+    }
+    set_history_provider(provider) {
+        this.#history.set_provider(provider);
     }
 
     // vscode interface
@@ -882,8 +888,8 @@ export default class REPL {
             // First line already, move to start of line
             if (this.#cursor_begin_of_line())
                 return;
-            // TODO history
-            return;
+            this.#history.put_temp(this.#get_input_string());
+            return this.#reset_to_history(this.#history.get_prev());
         }
         else {
             // Move to previous line
@@ -915,8 +921,8 @@ export default class REPL {
             // Last line already, move to end of line
             if (this.#cursor_end_of_line())
                 return;
-            // TODO history
-            return;
+            this.#history.put_temp(this.#get_input_string());
+            return this.#reset_to_history(this.#history.get_next());
         }
         else {
             // Move to next line
@@ -1025,12 +1031,11 @@ export default class REPL {
         this.#input_text('\n');
     }
     #try_submit() {
-        let text = this.#lines[0].text.substring(this.#ps0.length);
+        const text = this.#get_input_string();
         const ninput_lines = this.#lines.length;
-        for (let lineno = 1; lineno < ninput_lines; lineno++)
-            text += '\n' + this.#lines[lineno].text.substring(this.#ps1.length);
         if (!this.#prompt_cb(text))
             return this.#new_line();
+        this.#history.put_perm(text);
         if (this.#display_row_range[1] > 0) {
             this.#cursor_to_start();
             this.#do_clear_end_of_screen();
@@ -1087,6 +1092,21 @@ export default class REPL {
         // (much like tmux) so disable it for now...
         // This is the most useful for mobile devices but doesn't work with touch anyway...
         // this.#enable_mouse_tracking();
+        this.#history.reset();
+    }
+    #reset_to_history(data) {
+        if (data === undefined)
+            return;
+        const lines = data.split('\n');
+        this.#lines.length = 0;
+        this.#lines.push(new Line(this.#ps0 + lines[0]));
+        const nlines = lines.length;
+        for (let idx = 1; idx < nlines; idx++)
+            this.#lines.push(new Line(this.#ps1 + lines[idx]));
+        this.#cursor.line = 0;
+        this.#cursor.lineidx = this.#ps0.length;
+        const range = [0, nlines];
+        this.#rewrap_lines(range, range);
     }
 
     // Terminal utility functions
@@ -1288,6 +1308,13 @@ export default class REPL {
         if (end_redraw_subline >= this.#display_row_range[1])
             return do_redraw();
         return do_redraw(end_redraw_subline);
+    }
+    #get_input_string() {
+        let text = this.#lines[0].text.substring(this.#ps0.length);
+        const ninput_lines = this.#lines.length;
+        for (let lineno = 1; lineno < ninput_lines; lineno++)
+            text += '\n' + this.#lines[lineno].text.substring(this.#ps1.length);
+        return text;
     }
 
     // API

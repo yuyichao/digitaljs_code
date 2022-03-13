@@ -880,8 +880,10 @@ export default class REPL {
         }
         else if (this.#cursor.line == 0) {
             // First line already, move to start of line
+            if (this.#cursor_begin_of_line())
+                return;
             // TODO history
-            return this.#cursor_begin_of_line();
+            return;
         }
         else {
             // Move to previous line
@@ -911,8 +913,10 @@ export default class REPL {
         }
         else if (this.#cursor.line >= this.#lines.length - 1) {
             // Last line already, move to end of line
+            if (this.#cursor_end_of_line())
+                return;
             // TODO history
-            return this.#cursor_end_of_line();
+            return;
         }
         else {
             // Move to next line
@@ -933,22 +937,28 @@ export default class REPL {
         const line = this.#lines[this.#cursor.line];
         const prefix_idxlen = this.#cursor.line == 0 ? this.#ps0.length : this.#ps1.length;
         const prev_cursor = [...this.#cursor.pos];
+        if (this.#cursor.subline === 0 && this.#cursor.pos[1] === this.#ps_len)
+            return false;
         this.#cursor.lineidx = prefix_idxlen;
         this.#cursor.pos[0] -= this.#cursor.subline;
         this.#cursor.pos[1] = this.#ps_len;
         this.#cursor.subline = 0;
         this.#shift_and_set_cursor(prev_cursor);
+        return true;
     }
     #cursor_end_of_line() {
         const line = this.#lines[this.#cursor.line];
         const width = line.subline_width(line.nsublines - 1);
         const ndown = line.nsublines - this.#cursor.subline - 1;
+        if (ndown === 0 && this.#cursor.pos[1] === width)
+            return false;
         const prev_cursor = [...this.#cursor.pos];
         this.#cursor.lineidx = line.text.length;
         this.#cursor.subline = line.nsublines - 1;
         this.#cursor.pos[0] += ndown;
         this.#cursor.pos[1] = width;
         this.#shift_and_set_cursor(prev_cursor);
+        return true;
     }
     #delete_before() {
         const curline = this.#lines[this.#cursor.line];

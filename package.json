@@ -153,6 +153,64 @@
             }
         ],
         "menus": {
+            "commandPalette": [
+                {
+                    "command": "digitaljs.openView",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.showPanel",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.openViewJSON",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.addToViewSource",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.newViewSource",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.revealCircuit",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.pause",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.start",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.addFiles",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.exportImage",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.showLuaTerminal",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.removeSource",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.stopScript",
+                    "when": "false"
+                },
+                {
+                    "command": "digitaljs.startScript",
+                    "when": "false"
+                }
+            ],
             "view/title": [
                 {
                     "command": "digitaljs.newJSON",

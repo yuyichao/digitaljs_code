@@ -80,6 +80,8 @@ Contributions are welcome!
       Use the DigitalJS icon when the source file is open or click `Create circuit in DigitalJS`
       in the context menu for the file in the explorer view.
 
+      ![screenshot](./imgs/screenshots/create-circuit-src.png)
+
     After the circuit is created, new files can be added to it either using the DigitalJS icon
     and the explorer context menu, or using the `Add Files` button from the `Files` view
     in the DigitalJS side panel.

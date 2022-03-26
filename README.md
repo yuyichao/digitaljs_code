@@ -88,6 +88,8 @@ Contributions are welcome!
     and the explorer context menu, or using the `Add Files` button from the `Files` view
     in the DigitalJS side panel.
 
+    ![files sidepanel](./imgs/screenshots/digitaljs-files-sidepanel.png)
+
     Files with extension `.digitaljs` will automatically be opened by the DigitalJS extension.
     Opening files with `.json` is also supported using either explorer context menu
     or `Open With` vscode command. One can also open the JSON files saved from
@@ -180,3 +182,8 @@ Contributions are welcome!
     and command line history are supported. Pressing `Ctrl-C` in the command line abort
     the execution of the commands from the command line.
     (It does not stop the execution of other lua scripts).
+
+    Starting, stopping the simulation from Lua terminal, setting input and getting output
+    from the cirsuit:
+
+    ![Lua REPL](./imgs/screenshots/lua-repl.png)

@@ -34,3 +34,16 @@ export async function read_txt_file(uri) {
 export async function write_txt_file(uri, str) {
     await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(str));
 }
+
+export async function file_exist(uri) {
+    // Couldn't find a better method...
+    try {
+        await vscode.workspace.fs.stat(uri);
+    }
+    catch (e) {
+        if (e.code === 'FileNotFound') {
+            return false;
+        }
+    }
+    return true;
+}

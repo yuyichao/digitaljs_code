@@ -10,7 +10,7 @@ import { FilesView } from './files_view.mjs';
 import { LuaTerminal } from './lua_terminal.mjs';
 import { SynthProvider } from './synth_provider.mjs';
 import { StatusProvider } from './status_provider.mjs';
-import { read_txt_file, write_txt_file } from './utils.mjs';
+import { read_txt_file, write_txt_file, file_exist } from './utils.mjs';
 import { extension_formats } from '../lib/image_formats.mjs';
 
 export function activate(context) {
@@ -486,8 +486,12 @@ class DigitalJS {
         }
     }
 
-    #newJSON(hint, use_workspace) {
-        hint = hint || active_editor_uri();
+    async #newJSON(hint, use_workspace, use_name_hint) {
+        if (!hint) {
+            hint = active_editor_uri();
+            use_name_hint = false;
+            use_workspace = true;
+        }
         // The command "workbench.action.files.newUntitledFile"
         // can also be used to open a new circuit but it doesn't allow
         // adding a hint for the filename AFAICT.
@@ -512,31 +516,39 @@ class DigitalJS {
         // It shouldn't be needed for all the cases I'm aware of and we'll decide if
         // we need to include them or strip them when we find a real case.
         // Stripping them for now should hopefully be the least risky.
-        const id = this.#untitled_tracker.alloc();
-        const name = `circuit-${id}.digitaljs`;
+        const new_name = () => {
+            const id = this.#untitled_tracker.alloc();
+            return `circuit-${id}.digitaljs`;
+        };
         const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!hint)
-            use_workspace = true;
         if (!workspaceFolders || workspaceFolders.length == 0)
             use_workspace = false;
 
-        let uri;
-        if (!use_workspace && hint) {
-            uri = vscode.Uri.from({ scheme: 'untitled', authority: hint.authority,
-                                    path: path.join(path.dirname(hint.path), name) });
-        }
-        else if (use_workspace) {
-            const dir_uri = find_workspace_uri(hint, workspaceFolders);
-            uri = vscode.Uri.from({ scheme: 'untitled', authority: dir_uri.authority,
-                                    path: path.join(dir_uri.path, name) });
-        }
-        else {
+        const gen_uri = async () => {
+            if (!use_workspace && hint) {
+                if (use_name_hint) {
+                    const doc_path = hint.path.replace(/\.[^/.]+$/, '') + '.digitaljs';
+                    const doc_fs_uri = hint.with({ path: doc_path });
+                    if (!(await file_exist(doc_fs_uri))) {
+                        return doc_fs_uri.with({ scheme: 'untitled' });
+                    }
+                }
+                return vscode.Uri.from({ scheme: 'untitled', authority: hint.authority,
+                                         path: path.join(path.dirname(hint.path), new_name()) });
+            }
+            if (use_workspace) {
+                const dir_uri = find_workspace_uri(hint, workspaceFolders);
+                return vscode.Uri.from({ scheme: 'untitled', authority: dir_uri.authority,
+                                         path: path.join(dir_uri.path, new_name()) });
+            }
             // If we reached here, we know that there isn't any hint
             // (or we'd have either used that or use it to find a workspace)
             // or workspace folders (or !hint would have forced the use of it)
             // so let's just use the most minimum uri in this case...
-            uri = vscode.Uri.from({ scheme: 'untitled', path: name });
-        }
+            return vscode.Uri.from({ scheme: 'untitled', path: new_name() });
+        };
+
+        const uri = await gen_uri();
         const uri_str = uri.toString();;
         this.#openViewJSON(uri);
         return uri_str;
@@ -660,7 +672,7 @@ class DigitalJS {
             vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         vscode.commands.executeCommand("vscode.openWith", uri, EditorProvider.viewType);
     }
-    #openViewSource(uri, force_new) {
+    async #openViewSource(uri, force_new) {
         if (this.#circuitView && !force_new) {
             this.#circuitView.reveal();
             vscode.commands.executeCommand('digitaljs-proj-files.focus');
@@ -678,7 +690,7 @@ class DigitalJS {
             // This way we can at least avoid action-at-a-distance kind of issues
             // where the sources that failed to be added get added later to
             // an unrelated document.
-            this.#pendingSources.push({ uri, doc_uri: this.#newJSON(uri, false) });
+            this.#pendingSources.push({ uri, doc_uri: await this.#newJSON(uri, false, true) });
         }
     }
     async #openView() {

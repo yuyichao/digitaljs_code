@@ -79,6 +79,8 @@ Contributions are welcome!
     * To create a circuit from an existing source file (`.v`, `.sv`, `.vh` and `.lua` supported)
       Use the DigitalJS icon when the source file is open or click `Create circuit in DigitalJS`
       in the context menu for the file in the explorer view.
+      The source file will be added to the new circuit and the new circuit will by default
+      have inherit the name from the source file.
 
       ![screenshot](./imgs/screenshots/create-circuit-src.png)
 

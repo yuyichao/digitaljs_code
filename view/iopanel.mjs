@@ -27,6 +27,12 @@ export class RemoteIOPanel extends Backbone.View {
         this.stopListening();
         this.view = [];
         this.updater = {};
+        for (const element of this.model._graph.getElements()) {
+            const celltype = element.get('type');
+            if (celltype !== 'Clock' && celltype !== '$clock')
+                continue;
+            this._addClock(element);
+        }
         for (const element of this.model.getInputCells())
             this._addInput(element);
         for (const element of this.model.getOutputCells())
@@ -56,6 +62,19 @@ export class RemoteIOPanel extends Backbone.View {
         this.listenTo(cell, 'change:outputSignals', (cell, sigs) => {
             this.vscode.postMessage({ command: "iopanel:update",
                                       id: row.id, value: sigs.out.toBin() });
+        });
+    }
+    _addClock(cell) {
+        const row = this._createRow(cell);
+        row.dir = 'clock';
+        this.view.push(row);
+        this.updater[row.id] = (val) => {
+            cell.set('propagation', val);
+        };
+        row.value = cell.get('propagation');
+        this.listenTo(cell, 'change:propagation', (cell, value) => {
+            this.vscode.postMessage({ command: "iopanel:update",
+                                      id: row.id, value: value });
         });
     }
     _addOutput(cell) {

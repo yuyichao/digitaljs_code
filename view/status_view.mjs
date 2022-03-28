@@ -119,6 +119,11 @@ class Status {
         }
     }
     #newWidget(view) {
+        if (view.dir == 'clock') {
+            const w = this.#newClockWidget(view);
+            w.dir = view.dir;
+            return w;
+        }
         const is_input = view.dir == 'input';
         const w = view.bits == 1 ? this.#newBitWidget(view, is_input) :
                   this.#newNumberWidget(view, is_input);
@@ -152,6 +157,39 @@ class Status {
                                      value: checkbox.prop('checked') ? '1' : '0' });
             });
         }
+        return { widget, updater };
+    }
+    #newClockWidget(view) {
+        const id = view.id;
+        const widget = $(`<tr>
+  <td>
+    <span class="djs-io-name" style="color:var(--foreground);vertical-align:middle;"></span>
+  </td>
+  <td>
+    <vscode-text-field type="number" style="vertical-align:middle;"></vscode-text-field>
+  </td>
+  <td>
+  </td>
+</tr>`);
+        widget.find('span.djs-io-name').text(view.label);
+        const input = widget.find('vscode-text-field');
+        const bits = view.bits;
+        let value = view.value;
+        const updater = (new_value) => {
+            value = new_value;
+            input.val(value);
+        };
+        updater(value);
+        input.change((e) => {
+            const str = e.target.value;
+            if (!str.match(/^[1-9][0-9]*/))
+                return;
+            const new_value = parseInt(str);
+            if (new_value == value)
+                return;
+            value = new_value;
+            vscode.postMessage({ command: 'iopanel:update', id, value });
+        });
         return { widget, updater };
     }
     #newNumberWidget(view, is_input) {

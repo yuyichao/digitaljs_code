@@ -415,7 +415,8 @@ export class Document {
                 return;
             case 'luaerror': {
                 if (this.luaTerminal) {
-                    this.luaTerminal.creationOptions.pty.print(`ERROR: ${message.message}\n`);
+                    this.luaTerminal.creationOptions.pty.print(`ERROR: ${message.message}\n`,
+                                                               { start_newline: true });
                     if (this.luaTerminal === vscode.window.activeTerminal) {
                         return;
                     }

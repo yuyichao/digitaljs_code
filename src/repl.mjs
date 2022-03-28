@@ -1323,10 +1323,11 @@ export default class REPL {
         this.#do_cursor_start_of_line();
         this.#do_cursor_up(this.#start_line(this.#cursor.line) + this.#cursor.subline);
         this.#do_clear_end_of_screen();
-        if (this.#print_col > 0) {
+        if (this.#print_col > 0 && !this.#print_start_newline) {
             this.#do_cursor_up();
             this.#do_cursor_right(this.#print_col);
         }
+        this.#print_start_newline = false;
         const data = this.#print_string.replaceAll(/\r\n/g, '\n').replaceAll(/[\r\n]/g, '\r\n');
         this.#print_string = '';
         this.#write(data);
@@ -1361,10 +1362,19 @@ export default class REPL {
     }
     #print_worker_running
     #print_string = ''
-    print(data) {
+    #print_start_newline = false
+    print(data, { start_newline = false } = {}) {
         // Terminal inactive, ignore.
         if (this.#lines.length == 0)
             return;
+        if (start_newline) {
+            if (!this.#print_string) {
+                this.#print_start_newline = true;
+            }
+            else {
+                this.#print_string += '\n';
+            }
+        }
         this.#print_string += data;
         if (!this.#print_worker_running) {
             this.#print_worker_running = true;

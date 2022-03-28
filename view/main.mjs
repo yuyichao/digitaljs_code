@@ -212,15 +212,17 @@ class LuaRunner {
     #error(name, e, isrepl) {
         vscode.postMessage({ command: "luaerror", name, message: e.luaMessage, isrepl });
     }
-    #getRunner(name, isrepl) {
+    #getRunner(name, isrepl, label) {
         if (isrepl) {
             if (this.#repl_runner) {
                 this.#repl_runner.djs_name = name;
+                this.#repl_runner.djs_label = label;
                 return this.#repl_runner;
             }
         }
         const runner = new digitaljs_lua.LuaRunner(this.#djs.circuit);
         runner.djs_name = name;
+        runner.djs_label = label;
         runner.on('thread:stop', (pid) => {
             vscode.postMessage({ command: "luastop", name: runner.djs_name, isrepl });
             if (!isrepl || this.#repl_queue.length <= 0)
@@ -234,7 +236,7 @@ class LuaRunner {
         });
         runner.on('print', msgs => {
             vscode.postMessage({ command: "luaprint", name: runner.djs_name,
-                                 messages: msgs, isrepl });
+                                 messages: msgs, isrepl, label: runner.djs_label });
         });
         if (isrepl) {
             this.#repl_runner = runner;
@@ -262,7 +264,7 @@ class LuaRunner {
     }
     #run(name, script, isrepl, label) {
         label = label || name;
-        const runner = this.#getRunner(name, isrepl);
+        const runner = this.#getRunner(name, isrepl, label);
         let pid;
         try {
             // A `@` prefixed chunk name is interpreted as filename by lua

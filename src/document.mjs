@@ -7,7 +7,7 @@ import * as path from 'path';
 import _ from 'lodash';
 import { run_yosys } from './requests.mjs';
 import { Sources } from './sources.mjs';
-import { rel_compat2, write_txt_file } from './utils.mjs';
+import { write_txt_file } from './utils.mjs';
 
 const default_synth_options = {
     opt: false,
@@ -420,14 +420,7 @@ export class Document {
                         return;
                     }
                 }
-                let name = message.name;
-                if (!message.isrepl) {
-                    let uri = vscode.Uri.parse(name);
-                    if (rel_compat2(this.#sources.doc_dir_uri, uri)) {
-                        name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
-                    }
-                }
-                vscode.window.showErrorMessage(`${name}: ${message.message}`);
+                vscode.window.showErrorMessage(message.message);
                 return;
             }
             case 'luaprint': {
@@ -438,14 +431,7 @@ export class Document {
                         return;
                     }
                 }
-                let name = message.name;
-                if (!message.isrepl) {
-                    let uri = vscode.Uri.parse(name);
-                    if (rel_compat2(this.#sources.doc_dir_uri, uri)) {
-                        name = path.relative(this.#sources.doc_dir_uri.path, uri.path);
-                    }
-                }
-                vscode.window.showInformationMessage(`${name}: ${msg}`);
+                vscode.window.showInformationMessage(`${message.label}: ${msg}`);
                 return;
             }
             case 'showmarker':

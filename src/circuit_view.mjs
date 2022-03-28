@@ -143,6 +143,9 @@ export class CircuitView {
         // which will create a new view for the editor and messes everything up...
         if (!col || col < 0)
             return;
+        // Ignore focusing request if already active.
+        if (this.#panel.active)
+            return;
         this.#panel.reveal(col);
     }
     post(msg) {

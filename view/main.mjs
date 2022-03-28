@@ -264,7 +264,9 @@ class LuaRunner {
         const runner = this.#getRunner(name, isrepl);
         let pid;
         try {
-            pid = runner.runThread(script, { name, printResult: isrepl, prependReturn: isrepl });
+            // A `@` prefixed chunk name is interpreted as filename by lua
+            pid = runner.runThread(script, { name: `@${name}`, printResult: isrepl,
+                                             prependReturn: isrepl });
             runner.running_pid = pid;
         }
         catch (e) {

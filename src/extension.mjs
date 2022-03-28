@@ -307,6 +307,7 @@ class DigitalJS {
         this.postPanelMessage({
             command: 'runlua',
             name: item.resourceUri.toString(),
+            label: item.label.label || item.label,
             script
         });
     }

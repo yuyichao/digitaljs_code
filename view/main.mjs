@@ -225,9 +225,9 @@ class LuaRunner {
             vscode.postMessage({ command: "luastop", name: runner.djs_name, isrepl });
             if (!isrepl || this.#repl_queue.length <= 0)
                 return;
-            const { name, script } = this.#repl_queue[0];
+            const { name, script, label } = this.#repl_queue[0];
             this.#repl_queue.splice(0, 1);
-            this.#run(name, script, true);
+            this.#run(name, script, true, label);
         });
         runner.on('thread:error', (pid, e) => {
             this.#error(runner.djs_name, e, isrepl);
@@ -244,13 +244,13 @@ class LuaRunner {
         }
         return runner;
     }
-    run(name, script, isrepl) {
+    run(name, script, isrepl, label) {
         if (isrepl) {
             const runner = this.#repl_runner;
             if (runner && runner.running_pid !== undefined) {
                 const pid = runner.running_pid;
                 if (runner.isThreadRunning(pid)) {
-                    this.#repl_queue.push({ name, script });
+                    this.#repl_queue.push({ name, script, label });
                     return;
                 }
             }
@@ -258,14 +258,15 @@ class LuaRunner {
         else {
             this.stop(name);
         }
-        this.#run(name, script, isrepl);
+        this.#run(name, script, isrepl, label);
     }
-    #run(name, script, isrepl) {
+    #run(name, script, isrepl, label) {
+        label = label || name;
         const runner = this.#getRunner(name, isrepl);
         let pid;
         try {
             // A `@` prefixed chunk name is interpreted as filename by lua
-            pid = runner.runThread(script, { name: `@${name}`, printResult: isrepl,
+            pid = runner.runThread(script, { name: `@${label}`, printResult: isrepl,
                                              prependReturn: isrepl });
             runner.running_pid = pid;
         }
@@ -586,7 +587,7 @@ class DigitalJS {
                 this.#fastForwardSim();
                 return;
             case 'runlua':
-                this.#lua.run(message.name, message.script, message.isrepl);
+                this.#lua.run(message.name, message.script, message.isrepl, message.label);
                 return;
             case 'stoplua':
                 this.#lua.stop(message.name, message.isrepl, message.quit);
